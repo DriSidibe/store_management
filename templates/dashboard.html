@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <div class="content form-wrapper">
+        <h2>Products in Stock</h2>
+        <form action="/" method="POST">
+            {% csrf_token %}
+            <div class="form-row">
+                <div class="form-group col-md-4">
+                    <input type="search" name="prod_id" id="product_id" class="form-control form-control-sm" placeholder="Enter the product ID">
+                </div>
+                <div class="form-group col-md-4">
+                    <input type="search" name="prod_name" id="prod_name" class="form-control form-control-sm" placeholder="Enter the product name">
+                </div>
+                <div class="form-group col-md-4">
+                    <input type="submit" value="Search" class="btn btn-primary">
+                </div>
+            </div>
+        </form>
+        <table class="table"> 
+            <thead class="thead-dark"> 
+                <tr> 
+                    <th scope="col">ID</th> 
+                    <th scope="col">Name</th> 
+                    <th scope="col">Quantity</th> 
+                    <th scope="col">Price</th> 
+                    <th scope="col">Image</th> 
+                </tr> 
+            </thead> 
+            <tbody> 
+                {% for product in products %} 
+                <tr> 
+                    <th scope="row">{{product.product_id}}</th> 
+                    <td>{{product.product_name}}</td> 
+                    <td>{{product.product_quantity}}</td> 
+                    <td>{{product.product_sp|floatformat:2}}</td> 
+                    <td><img style="width: 50px; height: 50px;" src="{{product.product_image.url}}"/></td> 
+                </tr> 
+                {% endfor %} 
+            </tbody> 
+        </table>
+        
+    </div>
+{% endblock %}
+
+
