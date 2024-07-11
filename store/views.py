@@ -41,6 +41,13 @@ def add_product(request):
         y = 'AM1'
     return render(request, 'add-product.html', {'y':y})
 
+@login_required(login_url="/account/login")
+def delete_product(request):
+    p_id = request.GET['product_id'].upper()
+    todelete = Product.objects.get(product_id=p_id)
+    todelete.delete()
+    return redirect('/')
+
 
 @login_required(login_url="/account/login")
 def update_product(request):

@@ -26,6 +26,9 @@
                     <th scope="col">Quantité</th> 
                     <th scope="col">Prix</th> 
                     <th scope="col">Image</th> 
+                    {% if request.user.username == 'drissa' %}
+                    <th scope="col">Actions</th> 
+                    {% endif %}
                 </tr> 
             </thead> 
             <tbody> 
@@ -36,6 +39,22 @@
                     <td>{{product.product_quantity}}</td> 
                     <td>{{product.product_sp|floatformat:2}}</td> 
                     <td><img style="width: 50px; height: 50px;" src="{{product.product_image.url}}"/></td> 
+                    {% if request.user.username == 'drissa' %}
+                    <td>
+                        <div>
+                            <form action="/search-product/" method="GET">
+                                {% csrf_token %}
+                                <input name="product_id" style="display: none;" value="{{product.product_id}}"/>
+                                <input type="submit" class="btn btn-warning" value="modifier"/>
+                            </form>
+                            <form action="/delete-product/" method="GET">
+                                {% csrf_token %}
+                                <input name="product_id" style="display: none;" value="{{product.product_id}}"/>
+                                <input type="submit" class="btn btn-danger" value="supprimer"/>
+                            </form>
+                        </div>
+                    </td> 
+                    {% endif %}
                 </tr> 
                 {% endfor %} 
             </tbody> 
