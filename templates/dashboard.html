@@ -1,29 +1,30 @@
 {% extends 'base.html' %}
 
 {% block content %}
-    <div class="content form-wrapper">
-        <h2>Products in Stock</h2>
-        <form action="/" method="POST">
-            {% csrf_token %}
-            <div class="form-row">
-                <div class="form-group col-md-4">
-                    <input type="search" name="prod_id" id="product_id" class="form-control form-control-sm" placeholder="Enter the product ID">
-                </div>
-                <div class="form-group col-md-4">
-                    <input type="search" name="prod_name" id="prod_name" class="form-control form-control-sm" placeholder="Enter the product name">
-                </div>
-                <div class="form-group col-md-4">
-                    <input type="submit" value="Search" class="btn btn-primary">
-                </div>
+    <div class="content form-wrapper container-fluid">
+    <h2>Produits en Stock</h2>
+    <form action="/" method="POST">
+        {% csrf_token %}
+        <div class="form-row">
+            <div class="form-group col-12 col-md-4">
+                <input type="search" name="product_id" id="product_id" class="form-control form-control-sm" placeholder="Entrer l'ID du produit">
             </div>
-        </form>
-        <table class="table"> 
+            <div class="form-group col-12 col-md-4">
+                <input type="search" name="prod_name" id="product_name" class="form-control form-control-sm" placeholder="Entrer le nom du produit">
+            </div>
+            <div class="form-group col-12 col-md-4">
+                <input type="submit" value="Rechercher" class="btn btn-primary btn-block">
+            </div>
+        </div>
+    </form>
+    <div class="table-responsive">
+        <table id="dash-table" class="table"> 
             <thead class="thead-dark"> 
                 <tr> 
                     <th scope="col">ID</th> 
-                    <th scope="col">Name</th> 
-                    <th scope="col">Quantity</th> 
-                    <th scope="col">Price</th> 
+                    <th scope="col">Nom</th> 
+                    <th scope="col">Quantité</th> 
+                    <th scope="col">Prix</th> 
                     <th scope="col">Image</th> 
                 </tr> 
             </thead> 
@@ -39,8 +40,33 @@
                 {% endfor %} 
             </tbody> 
         </table>
-        
+        <div id="mobile">
+            {% for product in products %}
+                <div class="card">
+                    <div class="card-image">
+                        <img src="{{product.product_image.url}}" alt="{{product.product_name}}">
+                    </div>
+                    <div class="card-details">
+                        <div class="detail-item">
+                            <h5>Code:</h5>
+                            <p>{{product.product_id}}</p>
+                        </div>
+                        <div class="detail-item">
+                            <h5>Nom:</h5>
+                            <p>{{product.product_name}}</p>
+                        </div>
+                        <div class="detail-item">
+                            <h5>Prix:</h5>
+                            <p>{{product.product_sp|floatformat:2}}</p>
+                        </div>
+                        <div class="detail-item">
+                            <h5>Qte rest:</h5>
+                            <p>{{product.product_quantity}}</p>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
     </div>
+</div>
 {% endblock %}
-
-

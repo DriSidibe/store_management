@@ -7,9 +7,9 @@ from django.contrib import messages
 def index(request):
     if request.method == 'POST':
         if request.POST['product_id'] != '':
-            productList = Product.objects.filter(pk=request.POST['product_id'].upper())
+            productList = Product.objects.filter(product_id=request.POST['product_id'].upper())
         else:
-            productList = Product.objects.filter(product_name__contains=request.POST['prod_name'])
+            productList = Product.objects.filter(product_name__contains=request.POST['prod_name'].title())
     else:
         productList = Product.objects.all()
     context = {'products':productList}
@@ -20,7 +20,7 @@ def index(request):
 def add_product(request):
     if request.method=="POST":
         product_id = request.POST['product_id']
-        product_name = request.POST['product_name']
+        product_name = request.POST['product_name'].title()
         product_description = request.POST['product_description']
         product_quantity = int(request.POST['product_quantity'])
         product_company = request.POST['product_company']
@@ -47,15 +47,16 @@ def update_product(request):
     if request.method=="POST":
         p_id = request.POST['product_id'].upper()
         
-        toupdate = Product.objects.get(id=p_id)
+        toupdate = Product.objects.get(product_id=p_id)
         
-        toupdate.product_name = request.POST['product_name']
+        toupdate.product_name = request.POST['product_name'].title()
         toupdate.product_company = request.POST['product_company']
         toupdate.product_description = request.POST['product_description']
         toupdate.product_cp = request.POST['product_cp']
         toupdate.product_sp = request.POST['product_sp']
         toupdate.product_quantity = request.POST['product_quantity']
-        toupdate.product_image = request.FILES['product_image']
+        if 'product_image' in request.FILES:
+            toupdate.product_image = request.FILES['product_image']
         toupdate.save()
         return redirect('/update-product')
     return render(request, 'update-product.html')
@@ -63,7 +64,7 @@ def update_product(request):
 
 @login_required(login_url="/account/login")
 def search_product(request):
-    product_id = request.GET['product_id']
+    product_id = request.GET['product_id'].upper()
     toupdate = None
     try:
         toupdate = Product.objects.get(product_id=product_id)
@@ -98,7 +99,7 @@ def existing_bills(request):
 def add_product_to_bill(request):
     if request.method == "POST":
         billID = request.POST['bill']
-        prodID = request.POST['product_id']
+        prodID = request.POST['product_id'].upper()
         quantity = request.POST['quantity']
 
         # to decrease the quantity in stock
@@ -116,9 +117,8 @@ def add_product_to_bill(request):
 
 @login_required(login_url="/account/login")
 def get_product(request):
-    query = request.GET['product_id']
-    product_id = int(query)
-    product = Product.objects.get(id=product_id)
+    product_id = request.GET['product_id'].upper()
+    product = Product.objects.get(product_id=product_id)
     bills = Bill.objects.all()[:5]
     allBills = reversed(bills)
     context = {'product': product, 'bills': allBills}

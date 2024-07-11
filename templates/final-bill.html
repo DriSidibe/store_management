@@ -7,9 +7,9 @@
         <div class="card-header">
             <table class="table">
                 <tr>
-                    <th><h5>Total: <strong>Rs. {{g_total}}</strong></h5></th>
+                    <th><h5>Total : <strong>Rs. {{ g_total }}</strong></h5></th>
                     <th>
-                        <a style="float:right; margin:5px;" href="/print-bill/{{billId}}" class="btn btn-success" target="_blank">Invoice</a>
+                        <a style="float:right; margin:5px;" href="/print-bill/{{ billId }}" class="btn btn-success" target="_blank">Facture</a>
                     </th>
                 </tr>
             </table>
@@ -18,20 +18,20 @@
             <table class="table">
                 <thead class="thead-dark">
                   <tr>
-                    <th scope="col">Items</th>
-                    <th scope="col">Price</th>
-                    <th scope="col">Quantity</th>
+                    <th scope="col">Articles</th>
+                    <th scope="col">Prix</th>
+                    <th scope="col">Quantité</th>
                     <th scope="col">Total</th>
                   </tr>
                 </thead>
                 <tbody>
-                    {% for item in items%}
+                    {% for item in items %}
                     
                   <tr>
-                    <th scope="row">{{item.productInfo.name}}</th>
-                    <td>{{item.productInfo.price}}</td>
-                    <td>{{item.quantity}}</td>
-                    <td>{{item.total}}</td>
+                    <th scope="row">{{ item.productInfo.name }}</th>
+                    <td>{{ item.productInfo.price }}</td>
+                    <td>{{ item.quantity }}</td>
+                    <td>{{ item.total }}</td>
                   </tr>
                  
                   {% endfor %}
@@ -42,6 +42,5 @@
     
     
 </div>
-        
 
 {% endblock %}

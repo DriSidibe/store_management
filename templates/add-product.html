@@ -6,36 +6,36 @@
         {% csrf_token %}
         <div class="form-row">
           <div class="form-group col-md-4">
-            <label for="inputProductNo">Product ID</label>
-            <input type="text" class="form-control form-control-sm" name="product_id" placeholder="Product ID" value="{{ y }}" readonly>
+            <label for="inputProductNo">Identifiant du produit</label>
+            <input type="text" class="form-control form-control-sm" name="product_id" placeholder="Identifiant du produit" value="{{ y }}" readonly>
           </div>
         </div>
         <div class="form-group">
-            <label for="inputName">Product Name</label>
-            <input type="text" class="form-control form-control-sm" name="product_name" placeholder="eg. Marteau Deto 1.5kg, Cutter" required>
+            <label for="inputName">Nom du produit</label>
+            <input type="text" class="form-control form-control-sm" name="product_name" placeholder="ex. Marteau Deto 1.5kg, Cutter" required>
         </div>
         <div class="form-row">
           <div class="form-group col-md-4">
-            <label for="inputQuantity">Quantity</label>
+            <label for="inputQuantity">Quantité</label>
             <input type="number" class="form-control form-control-sm" name="product_quantity" required>
           </div>
           <div class="form-group col-md-4">
-            <label for="inputCP">Cost Price</label>
+            <label for="inputCP">Prix d'achat</label>
             <input type="number" name="product_cp" class="form-control form-control-sm" step="0.01" required>
           </div>
           <div class="form-group col-md-4">
-            <label for="inputSP">Selling Price</label>
+            <label for="inputSP">Prix de vente</label>
             <input type="number" name="product_sp" class="form-control form-control-sm" step="0.01" required>
           </div>
         </div>
         <div class="form-group">
-            <label for="inputCompany">Manufacturing Company</label>
+            <label for="inputCompany">Entreprise de fabrication</label>
             <input type="text" class="form-control form-control-sm" name="product_company">
         </div>
         <div class="form-group">
-          <label for="product_image">Product Image</label>
+          <label for="product_image">Image du produit</label>
           <input name="product_image" type="file" class="form-control form-control-sm"/>
-          <img id="imagePreview" src="#" alt="Image Preview" style="display:none; width:150px;" />
+          <img id="imagePreview" src="#" alt="Aperçu de l'image" style="display:none; width:150px;" />
           <script>
               document.addEventListener('DOMContentLoaded', function(){
                   previewImage();
@@ -43,10 +43,10 @@
           </script>
         </div>
         <div class="form-group">
-            <label for="inputDescription">Product Description</label>
+            <label for="inputDescription">Description du produit</label>
             <textarea name="product_description" class="form-control form-control-sm"></textarea>
         </div>
-        <button type="submit" class="btn btn-primary">ADD</button>
+        <button type="submit" class="btn btn-primary">AJOUTER</button>
     </form>
 </div>
 

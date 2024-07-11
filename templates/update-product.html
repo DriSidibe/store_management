@@ -17,37 +17,37 @@
         {% csrf_token %}
         <div class="form-row">
             <div class="form-group col-md-4">
-                <label for="inputProductNo">Product ID</label>
+                <label for="inputProductNo">Produit ID</label>
                 <input type="text" class="form-control form-control-sm" name="product_id" placeholder="Product ID" value="{{ product.product_id }}" readonly>
             </div>
         </div>
         <div class="form-group">
-            <label for="inputName">Product Name</label>
+            <label for="inputName">Produit Nom</label>
             <input type="text" class="form-control form-control-sm" name="product_name" value="{{ product.product_name }}" placeholder="eg. Marteau Deto 1.5kg, Cutter">
         </div>
         <div class="form-row">
           <div class="form-group col-md-4">
-            <label for="inputQuantity">Quantity</label>
+            <label for="inputQuantity">Quantité</label>
             <input type="number" class="form-control form-control-sm" value="{{ product.product_quantity }}" name="product_quantity">
           </div>
           <div class="form-group col-md-4">
-            <label for="inputCP">Cost Price</label>
+            <label for="inputCP">Prix d'achat</label>
             <input type="number" name="product_cp" value="{{ product.product_cp }}" class="form-control form-control-sm" step="0.01">
           </div>
           <div class="form-group col-md-4">
-            <label for="inputSP">Selling Price</label>
+            <label for="inputSP">Prix de vente</label>
             <input type="number" name="product_sp" value="{{ product.product_sp }}" class="form-control form-control-sm" step="0.01">
           </div>
         </div>
         <div class="form-group">
-            <label for="inputCompany">Manufacturing Company</label>
+            <label for="inputCompany">Fabriquant</label>
             <input type="text" class="form-control form-control-sm" value="{{ product.product_company }}" name="product_company">
         </div>
         <div class="form-group">
-            <label for="product_image">Product Image</label>
+            <label for="product_image">Image produit</label>
             <input name="product_image" type="file" class="form-control form-control-sm"/>
             {% if product %}
-                <img id="imagePreview" src="{{product.product_image.url}}" alt="Image Preview" style="width:150px;" />
+                <img id="imagePreview" src="{{ product.product_image.url }}" alt="Image Preview" style="width:150px;" />
             {% else %}
                 <img id="imagePreview" src="{% static 'images/no-image.png' %}" alt="Image Preview" style="display:none; width:150px;" />
             {% endif %}
@@ -58,20 +58,20 @@
             </script>
         </div>
         <div class="form-group">
-            <label for="inputDescription">Product Description</label>
+            <label for="inputDescription">Description produit</label>
             <textarea name="product_description" class="form-control form-control-sm">{{ product.product_description }}</textarea>
         </div>
-        <button type="submit" onclick="return confirm('Are you sure you want to update this item?')" class="btn btn-primary">UPDATE</button>
+        <button type="submit" onclick="return confirm('Etes vous sure de vouloir modifier ce élément?')" class="btn btn-primary">MODIFIER</button>
     </form>
     
     {% if product %}
-    <form action="/delete/{{product.id}}" method="post">
+    <form action="/delete/{{ product.id }}" method="post">
         {% csrf_token %}
-        <button type="submit" onclick="return confirm('Are you sure you want to delete this item?')" class="btn btn-primary delete" style="background-color: #ff0000; margin-top: 10px;">DELETE</button>
+        <button type="submit" onclick="return confirm('Voulez vous supprimer ce élément?')" class="btn btn-primary delete" style="background-color: #ff0000; margin-top: 10px;">SUPPRIMER</button>
     </form>
     {% endif %}
     
 </div>
 
-<script src={% static 'js/image_visualizer.js' %}></script>
+<script src="{% static 'js/image_visualizer.js' %}"></script>
 {% endblock %}

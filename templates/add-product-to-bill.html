@@ -7,10 +7,10 @@
     {% csrf_token %}
     <div class="form-row">
         <div class="form-group col-md-4">
-            <input type="search" name="prod_id" id="prod_id" class="form-control form-control-sm" placeholder="Enter the product ID">
+            <input type="search" name="product_id" id="product_id" class="form-control form-control-sm" placeholder="Entrez l'ID du produit">
         </div>
         <div class="form-group col-md-4">
-            <input type="submit" value="Search" class="btn btn-primary">
+            <input type="submit" value="Rechercher" class="btn btn-primary">
         </div>
     </div>
   </form>
@@ -29,8 +29,8 @@
             {% endfor %}
         </select>
         <input type="text" name="product_id" value="{{ product.id }}" hidden>
-        <input type="number" name="quantity" placeholder="quantity" class="form-control">
-        <button type="submit" class="btn btn-success">Add to Cart</button>
+        <input type="number" name="quantity" placeholder="quantité" class="form-control">
+        <button type="submit" class="btn btn-success">Ajouter au Panier</button>
       </form>
     </div>
     <div class="card-body">
@@ -42,6 +42,5 @@
   </div>
   {% endif %}
 </div>
-        
 
 {% endblock %}

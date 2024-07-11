@@ -4,10 +4,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Store Management System</title>
+    <title>Gstionnaire De Magasin</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z" crossorigin="anonymous">
-    <link rel="stylesheet" href="{% static "css/index.css" %}">
-    
+    <link rel="stylesheet" href="{% static 'css/index.css' %}">
+
 </head>
 <body>
     {% for message in messages %}
@@ -21,22 +21,27 @@
 
     <div class="main-container">
         <div class="header">
-            <h1>Department Store Management System</h1>
+            <h1>ADM</h1>
         </div>
         <nav>
             <ul>
-                <li><a href="/">Dashboard</a></li>
-                <li><a href="/billing">Calculate Bill</a></li>
-                <li><a href="/add-product">Add Product</a></li>
-                <li><a href="/update-product">Update</a></li>
-                <li><a href="/account/login">Logout</a></li>
+                {% if request.user.username == 'drissa' %}
+                <li><a href="/">Tableau de Bord</a></li>
+                <li><a href="/billing">Calculer Facture</a></li>
+                <li><a href="/add-product">Ajouter Produit</a></li>
+                <li><a href="/update-product">Modifier</a></li>
+                <li><a href="/account/login">Déconnexion</a></li>
+                {% else %}
+                <li><a href="/">Tableau de Bord</a></li>
+                <li><a href="/account/login">Déconnexion</a></li>
+                {% endif %}
             </ul>
         </nav>
         <div class="content-container">
             {% block content %} {% endblock %}
         </div>
         <div class="copyright">
-            <p>Copyright &#169; Sandesh Paudel 2020</p>
+            <p>Copyright &#169; As des Materiaux 2020</p>
         </div>
     </div>
     

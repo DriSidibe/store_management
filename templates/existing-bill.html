@@ -3,23 +3,23 @@
 {% block content %}
 
 <div class="content">
-  <h3>Existing Bills</h3>
+  <h3>Factures Existantes</h3>
   <table class="table">
     <thead class="thead-dark">
       <tr>
-        <th scope="col">Customer Name</th>
-        <th scope="col">Date Created</th>
+        <th scope="col">Nom du Client</th>
+        <th scope="col">Date de Création</th>
         <th scope="col"></th>
       </tr>
     </thead>
     <tbody>
-        {% for bill in bills%}
+        {% for bill in bills %}
         
       <tr>
-        <th scope="row">{{bill.customer_name}}</th>
-        <td>{{bill.date_created}}</td>
-        <td><a class="btn btn-primary btn-sm" href="/final-bill/{{bill.id}}">Calculate</a></td>
-        <td><a class="btn btn-primary btn-sm" href="/add-product-to-bill">Add Product</a></td>
+        <th scope="row">{{ bill.customer_name }}</th>
+        <td>{{ bill.date_created }}</td>
+        <td><a class="btn btn-primary btn-sm" href="/final-bill/{{ bill.id }}">Calculer</a></td>
+        <td><a class="btn btn-primary btn-sm" href="/add-product-to-bill">Ajouter Produit</a></td>
       </tr>
      
       {% endfor %}
@@ -29,6 +29,5 @@
   
   
 </div>
-        
 
 {% endblock %}
