@@ -2,17 +2,19 @@ from django.shortcuts import render, redirect
 from .models import *
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.core.paginator import Paginator
 
 @login_required(login_url="/account/login")
 def index(request):
-    if request.method == 'POST':
+    page_size = 2
+    if request.method == 'POST' and 'page_number' not in request.POST:
         if request.POST['product_id'] != '':
             productList = Product.objects.filter(product_id=request.POST['product_id'].upper())
         else:
             productList = Product.objects.filter(product_name__contains=request.POST['prod_name'].title())
     else:
         productList = Product.objects.all()
-    context = {'products':productList}
+    context = {'products':Paginator(productList, page_size).get_page(int(request.POST['page_number'][0])) if 'page_number' in request.POST else Paginator(productList, page_size).get_page(1)}
     return render(request, 'dashboard.html', context)
 
 
