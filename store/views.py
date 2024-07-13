@@ -3,6 +3,42 @@ from .models import *
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.core.paginator import Paginator
+from PIL import Image
+import io
+
+def convert_to_jpeg(uploaded_file):
+    try:
+        # Ouvrir l'image à partir du fichier téléchargé
+        with Image.open(uploaded_file) as img:
+            # Convertir en mode RGB si nécessaire (certains formats comme PNG peuvent avoir un canal alpha)
+            if img.mode in ("RGBA", "P"):
+                img = img.convert("RGB")
+            
+            # Créer un buffer pour l'image convertie
+            buffer = io.BytesIO()
+            img.save(buffer, format="JPEG")
+            buffer.seek(0)
+            return buffer
+    except Exception as e:
+        return None
+
+
+def compress_image(uploaded_file, quality=10):
+    try:
+        # Ouvrir l'image à partir du fichier téléchargé
+        with Image.open(uploaded_file) as img:
+            # Convertir en mode RGB si nécessaire (certains formats comme PNG peuvent avoir un canal alpha)
+            if img.mode in ("RGBA", "P"):
+                img = img.convert("RGB")
+            
+            # Créer un buffer pour l'image compressée
+            buffer = io.BytesIO()
+            img.save(buffer, format="JPEG", quality=quality)
+            buffer.seek(0)
+            return buffer
+    except Exception as e:
+        raise None
+
 
 @login_required(login_url="/account/login")
 def index(request):
@@ -21,6 +57,7 @@ def index(request):
 @login_required(login_url="/account/login")
 def add_product(request):
     if request.method=="POST":
+        image = request.FILES['product_image']
         product_id = request.POST['product_id']
         product_name = request.POST['product_name'].title()
         product_description = request.POST['product_description']
@@ -28,12 +65,14 @@ def add_product(request):
         product_company = request.POST['product_company']
         product_sp = float(request.POST['product_sp'])
         product_cp = float(request.POST['product_cp'])
-        product_image = request.FILES['product_image']
+        product_image = compress_image(convert_to_jpeg(image))
         if (product_quantity<0 or product_sp<0):
             messages.error(request, "Negative value is not allowed.")
         else:
             
-            Product.objects.create(product_id=product_id, product_name=product_name, product_description=product_description, product_quantity=product_quantity, product_company=product_company, product_cp=product_cp, product_sp=product_sp, product_image=product_image)
+            new_product = Product(product_id=product_id, product_name=product_name, product_description=product_description, product_quantity=product_quantity, product_company=product_company, product_cp=product_cp, product_sp=product_sp)
+            new_product.product_image.save(image.name, product_image)
+            new_product.save()
             messages.success(request, "Product added successfully!")
             return redirect('/add-product')
     try:
@@ -65,7 +104,8 @@ def update_product(request):
         toupdate.product_sp = request.POST['product_sp']
         toupdate.product_quantity = request.POST['product_quantity']
         if 'product_image' in request.FILES:
-            toupdate.product_image = request.FILES['product_image']
+            image = request.FILES['product_image']
+            toupdate.product_image.save(image.name, compress_image(convert_to_jpeg(image)))
         toupdate.save()
         return redirect('/update-product')
     return render(request, 'update-product.html')
