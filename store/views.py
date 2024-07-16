@@ -65,12 +65,13 @@ def add_product(request):
         product_company = request.POST['product_company']
         product_sp = float(request.POST['product_sp'])
         product_cp = float(request.POST['product_cp'])
+        product_etag = request.POST['product_etag']
         product_image = compress_image(convert_to_jpeg(image))
         if (product_quantity<0 or product_sp<0):
             messages.error(request, "Negative value is not allowed.")
         else:
             
-            new_product = Product(product_id=product_id, product_name=product_name, product_description=product_description, product_quantity=product_quantity, product_company=product_company, product_cp=product_cp, product_sp=product_sp)
+            new_product = Product(product_id=product_id, product_name=product_name, product_description=product_description, product_quantity=product_quantity, product_company=product_company, product_cp=product_cp, product_sp=product_sp, product_etag=product_etag)
             new_product.product_image.save(image.name, product_image)
             new_product.save()
             messages.success(request, "Product added successfully!")
@@ -102,6 +103,7 @@ def update_product(request):
         toupdate.product_description = request.POST['product_description']
         toupdate.product_cp = request.POST['product_cp']
         toupdate.product_sp = request.POST['product_sp']
+        toupdate.product_etag = request.POST['product_etag']
         toupdate.product_quantity = request.POST['product_quantity']
         if 'product_image' in request.FILES:
             image = request.FILES['product_image']
