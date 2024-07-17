@@ -94,27 +94,41 @@
                             <h5>Qte rest:</h5>
                             <p>{{product.product_quantity}}</p>
                         </div>
+                        {% if request.user.username == 'drissa' %}
+                            <div style="width: 100%; display: flex; gap: 20px; flex-wrap: wrap; justfy-content: enter;">
+                                <form action="/search-product/" method="GET">
+                                    {% csrf_token %}
+                                    <input name="product_id" style="display: none;" value="{{product.product_id}}"/>
+                                    <input type="submit" class="btn btn-warning" value="modifier"/>
+                                </form>
+                                <form action="/delete-product/" method="GET">
+                                    {% csrf_token %}
+                                    <input name="product_id" style="display: none;" value="{{product.product_id}}"/>
+                                    <input type="submit" class="btn btn-danger" value="supprimer"/>
+                                </form>
+                            </div> 
+                        {% endif %}
                     </div>
                 </div>
             {% endfor %}
         </div>
-        <div class="pagination">
-            <span style="display: flex; gap: 20px;" class="step-links">
-              {% if products.has_previous %}
-                <form method="post">{% csrf_token %}<input style="display: none;" name="page_number" value="1"/><button type="submit">&laquo; premier</button></form>
-                <form method="post">{% csrf_token %}<input style="display: none;" name="page_number" value="{{ products.previous_page_number }}"/><button type="submit">precedent</button></form>
-              {% endif %}
-          
-              <span class="current">
-                Page {{ products.number }} de {{ products.paginator.num_pages }}.
-              </span>
-          
-              {% if products.has_next %}
-                <form method="post">{% csrf_token %}<input style="display: none;" name="page_number" value="{{ products.next_page_number }}"/><button type="submit">suivant</button></form>
-                <form method="post">{% csrf_token %}<input style="display: none;" name="page_number" value="{{ products.paginator.num_pages }}"/><button type="submit">dernier</button></form>
-              {% endif %}
-            </span>
-        </div>
+    </div>
+    <div class="pagination" style="width: 100%;">
+        <span style="display: flex; gap: 20px; width: 100vw; flex-wrap: wrap;" class="step-links">
+          {% if products.has_previous %}
+            <form method="post">{% csrf_token %}<input style="display: none;" name="page_number" value="1"/><button type="submit">&laquo; premier</button></form>
+            <form method="post">{% csrf_token %}<input style="display: none;" name="page_number" value="{{ products.previous_page_number }}"/><button type="submit">precedent</button></form>
+          {% endif %}
+      
+          <span class="current">
+            Page {{ products.number }} de {{ products.paginator.num_pages }}.
+          </span>
+      
+          {% if products.has_next %}
+            <form method="post">{% csrf_token %}<input style="display: none;" name="page_number" value="{{ products.next_page_number }}"/><button type="submit">suivant</button></form>
+            <form method="post">{% csrf_token %}<input style="display: none;" name="page_number" value="{{ products.paginator.num_pages }}"/><button type="submit">dernier</button></form>
+          {% endif %}
+        </span>
     </div>
 </div>
 {% endblock %}

@@ -42,7 +42,7 @@ def compress_image(uploaded_file, quality=10):
 
 @login_required(login_url="/account/login")
 def index(request):
-    page_size = 2
+    page_size = 20
     if request.method == 'POST' and 'page_number' not in request.POST:
         if request.POST['product_id'] != '':
             productList = Product.objects.filter(product_id=request.POST['product_id'].upper())
