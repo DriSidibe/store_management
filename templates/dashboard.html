@@ -22,6 +22,7 @@
             <thead class="thead-dark"> 
                 <tr> 
                     <th scope="col">ID</th> 
+                    <th scope="col">Etagère</th>
                     <th scope="col">Nom</th> 
                     <th scope="col">Quantité</th> 
                     <th scope="col">Prix achat</th>
@@ -36,6 +37,7 @@
                 {% for product in products %} 
                 <tr> 
                     <th scope="row">{{product.product_id}}</th> 
+                    <td>{{product.product_etag}}</td> 
                     <td>{{product.product_name}}</td> 
                     <td>{{product.product_quantity}}</td> 
                     <td>{{product.product_cp|floatformat:2}}</td> 
@@ -71,6 +73,10 @@
                         <div class="detail-item">
                             <h5>Code:</h5>
                             <p>{{product.product_id}}</p>
+                        </div>
+                        <div class="detail-item">
+                            <h5>Etagère:</h5>
+                            <p>{{product.product_etag}}</p>
                         </div>
                         <div class="detail-item">
                             <h5>Nom:</h5>
