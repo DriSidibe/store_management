@@ -10,7 +10,7 @@ class Product(models.Model):
     product_cp = models.FloatField()
     product_sp = models.FloatField()
     product_etag = models.CharField(max_length=200, blank=True, default="")
-    product_image = models.ImageField(upload_to ='products_images/') 
+    product_image = models.ImageField(upload_to ='products_images/', blank=True, default=None) 
 
     def __str__(self):
         return self.product_name

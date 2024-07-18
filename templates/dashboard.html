@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block content %}
     <div class="content form-wrapper container-fluid">
@@ -42,7 +43,13 @@
                     <td>{{product.product_quantity}}</td> 
                     <td>{{product.product_cp|floatformat:2}}</td> 
                     <td>{{product.product_sp|floatformat:2}}</td> 
-                    <td><img style="width: 50px; height: 50px;" src="{{product.product_image.url}}"/></td> 
+                    <td>
+                        {% if product.product_image %}
+                            <img style="width: 50px; height: 50px;" src="{{product.product_image.url}}"/>
+                        {% else %}
+                            <img style="width: 50px; height: 50px;" src="{% static 'images/image.png' %}"/>
+                        {% endif %}
+                    </td> 
                     {% if request.user.username == 'drissa' %}
                     <td>
                         <div>
@@ -67,7 +74,11 @@
             {% for product in products %}
                 <div class="card">
                     <div class="card-image">
-                        <img src="{{product.product_image.url}}" alt="{{product.product_name}}">
+                        {% if product.product_image %}
+                            <img src="{{product.product_image.url}}" alt="{{product.product_name}}">
+                        {% else %}
+                            <img src="{% static 'images/image.png' %}"/>
+                        {% endif %}
                     </div>
                     <div class="card-details">
                         <div class="detail-item">

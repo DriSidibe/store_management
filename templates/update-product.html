@@ -51,9 +51,13 @@
             <label for="product_image">Image produit</label>
             <input name="product_image" type="file" class="form-control form-control-sm"/>
             {% if product %}
-                <img id="imagePreview" src="{{ product.product_image.url }}" alt="Image Preview" style="width:150px;" />
+                {% if product.product_image %}
+                    <img id="imagePreview" src="{{ product.product_image.url }}" alt="Image Preview" style="width:150px;" />
+                {% else %}
+                    <img id="imagePreview" src="{% static 'images/image.png' %}"/>
+                {% endif %}
             {% else %}
-                <img id="imagePreview" src="{% static 'images/no-image.png' %}" alt="Image Preview" style="display:none; width:150px;" />
+                <img id="imagePreview" src="{% static 'images/image.png' %}" alt="Image Preview" style="display:none; width:150px;" />
             {% endif %}
             <script>
                 document.addEventListener('DOMContentLoaded', function(){

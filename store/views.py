@@ -57,7 +57,6 @@ def index(request):
 @login_required(login_url="/account/login")
 def add_product(request):
     if request.method=="POST":
-        image = request.FILES['product_image']
         product_id = request.POST['product_id']
         product_name = request.POST['product_name'].title()
         product_description = request.POST['product_description']
@@ -66,13 +65,15 @@ def add_product(request):
         product_sp = float(request.POST['product_sp'])
         product_cp = float(request.POST['product_cp'])
         product_etag = request.POST['product_etag']
-        product_image = compress_image(convert_to_jpeg(image))
+        if 'product_image' in request.FILES:
+            image = request.FILES['product_image']
+            product_image = compress_image(convert_to_jpeg(image))
         if (product_quantity<0 or product_sp<0):
             messages.error(request, "Negative value is not allowed.")
         else:
-            
             new_product = Product(product_id=product_id, product_name=product_name, product_description=product_description, product_quantity=product_quantity, product_company=product_company, product_cp=product_cp, product_sp=product_sp, product_etag=product_etag)
-            new_product.product_image.save(image.name, product_image)
+            if 'product_image' in request.FILES:
+                new_product.product_image.save(image.name, product_image)
             new_product.save()
             messages.success(request, "Product added successfully!")
             return redirect('/add-product')
