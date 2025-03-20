@@ -5,6 +5,8 @@ from django.contrib import messages
 from django.core.paginator import Paginator
 from PIL import Image
 import io
+import random
+from django.contrib import messages
 
 def convert_to_jpeg(uploaded_file):
     try:
@@ -56,33 +58,42 @@ def index(request):
 
 @login_required(login_url="/account/login")
 def add_product(request):
+    y = f'{random.randint(1, 99999):05d}'
+    shelfs = Shelf.objects.all()
     if request.method=="POST":
-        product_id = request.POST['product_id']
+        product_id = "AM"+"-"+request.POST['product_id_etg']+"-"+request.POST['product_id_cas']+"-"+request.POST['product_id']
         product_name = request.POST['product_name'].title()
         product_description = request.POST['product_description']
         product_quantity = int(request.POST['product_quantity'])
         product_company = request.POST['product_company']
         product_sp = float(request.POST['product_sp'])
         product_cp = float(request.POST['product_cp'])
-        product_etag = request.POST['product_etag']
+        if request.POST['product_id_etg'] == "NULL" or not request.POST['product_id_cas']:
+            messages.error(request, "Les informations sont incomplètes.")
+            form_datas = {
+                "product_id_etg" : request.POST['product_id_etg'],
+                "product_id_cas" : request.POST['product_id_cas'],
+                "product_name" : product_name,
+                "product_description" : product_description,
+                "product_quantity" : product_quantity,
+                "product_company" : product_company,
+                "product_sp" : product_sp,
+                "product_cp" : product_cp
+            }
+            return render(request, 'add-product.html', {'y':y, 'shelfs': shelfs, 'form_datas': form_datas})
         if 'product_image' in request.FILES:
             image = request.FILES['product_image']
             product_image = compress_image(convert_to_jpeg(image))
         if (product_quantity<0 or product_sp<0):
             messages.error(request, "Negative value is not allowed.")
         else:
-            new_product = Product(product_id=product_id, product_name=product_name, product_description=product_description, product_quantity=product_quantity, product_company=product_company, product_cp=product_cp, product_sp=product_sp, product_etag=product_etag)
+            new_product = Product(product_id=product_id, product_name=product_name, product_description=product_description, product_quantity=product_quantity, product_company=product_company, product_cp=product_cp, product_sp=product_sp)
             if 'product_image' in request.FILES:
                 new_product.product_image.save(image.name, product_image)
             new_product.save()
             messages.success(request, "Product added successfully!")
             return redirect('/add-product')
-    try:
-        x = Product.objects.latest('id')
-        y = 'AM'+str(int(x.product_id[2:])+1)
-    except Product.DoesNotExist:
-        y = 'AM1'
-    return render(request, 'add-product.html', {'y':y})
+    return render(request, 'add-product.html', {'y':y, 'shelfs': shelfs})
 
 @login_required(login_url="/account/login")
 def delete_product(request):

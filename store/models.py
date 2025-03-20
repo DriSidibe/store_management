@@ -9,7 +9,6 @@ class Product(models.Model):
     product_company = models.CharField(max_length=264)
     product_cp = models.FloatField()
     product_sp = models.FloatField()
-    product_etag = models.CharField(max_length=200, blank=True, default="")
     product_image = models.ImageField(upload_to ='products_images/', blank=True, default=None) 
 
     def __str__(self):
@@ -40,3 +39,9 @@ class BillItems(models.Model):
 
     def total(self):
         return self.quantity*self.product.product_sp
+    
+class Shelf(models.Model):
+    name = models.CharField(max_length=1)
+    
+    def __str__(self):
+        return self.name
