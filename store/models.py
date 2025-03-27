@@ -1,10 +1,17 @@
 from django.db import models
 
 # Create your models here.
+class Unity(models.Model):
+    name = models.CharField(max_length=255, unique=True)
+    
+    def __str__(self):
+        return self.name
+
 class Product(models.Model):
     product_id = models.CharField(unique=True, editable=False, max_length=36)
     product_name = models.CharField(max_length=200)
     product_description = models.TextField(blank=True, default="")
+    product_unity = models.ForeignKey(Unity, on_delete=models.CASCADE)
     product_quantity = models.IntegerField()
     product_company = models.CharField(max_length=264)
     product_cp = models.FloatField()
@@ -41,7 +48,7 @@ class BillItems(models.Model):
         return self.quantity*self.product.product_sp
     
 class Shelf(models.Model):
-    name = models.CharField(max_length=1)
+    name = models.CharField(max_length=1, unique=True)
     
     def __str__(self):
         return self.name

@@ -27,11 +27,12 @@
                     <th scope="col">Etagère</th>
                     <th scope="col">Casier</th>
                     <th scope="col">Nom</th> 
+                    <th scope="col">Unité</th> 
                     <th scope="col">Quantité</th> 
                     <th scope="col">Prix achat</th>
                     <th scope="col">Prix vente</th> 
                     <th scope="col">Image</th> 
-                    {% if request.user.username == 'drissa' %}
+                    {% if request.user.is_staff %}
                     <th scope="col">Actions</th> 
                     {% endif %}
                 </tr> 
@@ -45,6 +46,7 @@
                         <td>{{ parts.2 }}</td>
                     {% endwith %}
                     <td>{{product.product_name}}</td> 
+                    <td>{{product.product_unity}}</td> 
                     <td>{{product.product_quantity}}</td> 
                     <td>{{product.product_cp|floatformat:2}}</td> 
                     <td>{{product.product_sp|floatformat:2}}</td> 
@@ -55,7 +57,7 @@
                             <img style="width: 50px; height: 50px;" src="{% static 'images/image.png' %}"/>
                         {% endif %}
                     </td> 
-                    {% if request.user.username == 'drissa' %}
+                    {% if request.user.is_staff %}
                     <td>
                         <div>
                             <form action="/search-product/" method="GET">
@@ -63,11 +65,13 @@
                                 <input name="product_id" style="display: none;" value="{{product.product_id}}"/>
                                 <input type="submit" class="btn btn-warning" value="modifier"/>
                             </form>
-                            <form action="/delete-product/" method="GET">
-                                {% csrf_token %}
-                                <input name="product_id" style="display: none;" value="{{product.product_id}}"/>
-                                <input type="submit" class="btn btn-danger" value="supprimer"/>
-                            </form>
+                            {% if request.user.is_superuser %}
+                                <form action="/delete-product/" method="GET">
+                                    {% csrf_token %}
+                                    <input name="product_id" style="display: none;" value="{{product.product_id}}"/>
+                                    <input type="submit" class="btn btn-danger" value="supprimer"/>
+                                </form>
+                            {% endif %}
                         </div>
                     </td> 
                     {% endif %}
@@ -110,18 +114,20 @@
                             <h5>Qte rest:</h5>
                             <p>{{product.product_quantity}}</p>
                         </div>
-                        {% if request.user.username == 'drissa' %}
+                        {% if request.user.is_staff %}
                             <div style="width: 100%; display: flex; gap: 20px; flex-wrap: wrap; justfy-content: enter;">
                                 <form action="/search-product/" method="GET">
                                     {% csrf_token %}
                                     <input name="product_id" style="display: none;" value="{{product.product_id}}"/>
                                     <input type="submit" class="btn btn-warning" value="modifier"/>
                                 </form>
-                                <form action="/delete-product/" method="GET">
-                                    {% csrf_token %}
-                                    <input name="product_id" style="display: none;" value="{{product.product_id}}"/>
-                                    <input type="submit" class="btn btn-danger" value="supprimer"/>
-                                </form>
+                                {% if request.user.is_staff %}
+                                    <form action="/delete-product/" method="GET">
+                                        {% csrf_token %}
+                                        <input name="product_id" style="display: none;" value="{{product.product_id}}"/>
+                                        <input type="submit" class="btn btn-danger" value="supprimer"/>
+                                    </form>
+                                {% endif %}
                             </div> 
                         {% endif %}
                     </div>

@@ -60,6 +60,7 @@ def index(request):
 def add_product(request):
     y = f'{random.randint(1, 99999):05d}'
     shelfs = Shelf.objects.all()
+    unities = Unity.objects.all()
     if request.method=="POST":
         product_id = "AM"+"-"+request.POST['product_id_etg']+"-"+request.POST['product_id_cas']+"-"+request.POST['product_id']
         product_name = request.POST['product_name'].title()
@@ -68,7 +69,7 @@ def add_product(request):
         product_company = request.POST['product_company']
         product_sp = float(request.POST['product_sp'])
         product_cp = float(request.POST['product_cp'])
-        if request.POST['product_id_etg'] == "NULL" or not request.POST['product_id_cas']:
+        if request.POST['product_id_etg'] == "NULL" or not request.POST['product_id_cas'] or request.POST['product_unity'] == "NULL":
             messages.error(request, "Les informations sont incomplètes.")
             form_datas = {
                 "product_id_etg" : request.POST['product_id_etg'],
@@ -80,20 +81,21 @@ def add_product(request):
                 "product_sp" : product_sp,
                 "product_cp" : product_cp
             }
-            return render(request, 'add-product.html', {'y':y, 'shelfs': shelfs, 'form_datas': form_datas})
+            return render(request, 'add-product.html', {'y':y, 'shelfs': shelfs, 'unities': unities, 'form_datas': form_datas})
         if 'product_image' in request.FILES:
             image = request.FILES['product_image']
             product_image = compress_image(convert_to_jpeg(image))
         if (product_quantity<0 or product_sp<0):
             messages.error(request, "Negative value is not allowed.")
         else:
-            new_product = Product(product_id=product_id, product_name=product_name, product_description=product_description, product_quantity=product_quantity, product_company=product_company, product_cp=product_cp, product_sp=product_sp)
+            product_unity = Unity.objects.filter(name=request.POST['product_unity']).first()
+            new_product = Product(product_id=product_id, product_name=product_name, product_description=product_description, product_quantity=product_quantity, product_company=product_company, product_cp=product_cp, product_sp=product_sp, product_unity=product_unity)
             if 'product_image' in request.FILES:
                 new_product.product_image.save(image.name, product_image)
             new_product.save()
             messages.success(request, "Product added successfully!")
             return redirect('/add-product')
-    return render(request, 'add-product.html', {'y':y, 'shelfs': shelfs})
+    return render(request, 'add-product.html', {'y':y, 'shelfs': shelfs, 'unities': unities})
 
 @login_required(login_url="/account/login")
 def delete_product(request):
@@ -115,8 +117,12 @@ def update_product(request):
         toupdate.product_description = request.POST['product_description']
         toupdate.product_cp = request.POST['product_cp']
         toupdate.product_sp = request.POST['product_sp']
-        toupdate.product_etag = request.POST['product_etag']
+        tmp = toupdate.product_id.split("-")
+        tmp[1] = request.POST.get("product_etagere", tmp[1])
+        tmp[2] = request.POST["product_casier"]
+        toupdate.product_id = "-".join(tmp)
         toupdate.product_quantity = request.POST['product_quantity']
+        toupdate.product_unity = Unity.objects.filter(name=request.POST.get("product_unity", toupdate.product_unity.name)).first()
         if 'product_image' in request.FILES:
             image = request.FILES['product_image']
             toupdate.product_image.save(image.name, compress_image(convert_to_jpeg(image)))
@@ -133,7 +139,8 @@ def search_product(request):
         toupdate = Product.objects.get(product_id=product_id)
     except Product.DoesNotExist:
         messages.error(request, "Product Not Found!")
-    return render(request, 'update-product.html', {'product': toupdate})
+    shelfs = Shelf.objects.all()
+    return render(request, 'update-product.html', {'product': toupdate, 'shelfs': shelfs, 'etagere': toupdate.product_id.split("-")[1], 'unities':Unity.objects.all()})
     
 
 

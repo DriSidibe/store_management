@@ -16,7 +16,7 @@
           <div class="col">
             <label for="inputProductNo">Identifiant du produit</label>
             <div style="display: flex; gap: 20px;">
-              <select name="product_id_etg">
+              <select name="product_id_etg" class="form-control form-control-sm">
                 <option value="NULL" selected>
                   Etagère
                 </option>
@@ -49,15 +49,31 @@
             <input value="{{form_datas.product_name}}" type="text" class="form-control form-control-sm" name="product_name" placeholder="ex. Marteau Deto 1.5kg, Cutter" required>
         </div>
         <div class="form-row">
-          <div class="form-group col-md-4">
+          <div class="form-group col-md-3">
+            <label for="inputUnity">Unité</label>
+            <select name="product_unity" class="form-control form-control-sm">
+                <option value="NULL" selected>
+                  Unité
+                </option>
+                {% for unity in unities %}
+                  <option value="{{ unity }}">
+                    {{ unity }}
+                  </option>
+                {% endfor %}
+            </select>
+            <script>
+                document.getElementById("currentUnity").selected = true;
+            </script>
+          </div>
+          <div class="form-group col-md-3">
             <label for="inputQuantity">Quantité</label>
             <input value="{{form_datas.product_quantity}}" type="number" min="1" class="form-control form-control-sm" name="product_quantity" required>
           </div>
-          <div class="form-group col-md-4">
+          <div class="form-group col-md-3">
             <label for="inputCP">Prix d'achat</label>
             <input value="{{form_datas.product_cp}}" type="number" min="1" name="product_cp" class="form-control form-control-sm" step="0.01" required>
           </div>
-          <div class="form-group col-md-4">
+          <div class="form-group col-md-3">
             <label for="inputSP">Prix de vente</label>
             <input value="{{form_datas.product_sp}}" type="number" min="1" name="product_sp" class="form-control form-control-sm" step="0.01" required>
           </div>

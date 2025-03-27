@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load custom_filters %}
 {% load static %}
 {% block content %}
 <div class="content form-wrapper">
@@ -27,6 +28,25 @@
         </div>
         <div class="form-row">
           <div class="form-group col-md-4">
+            <label for="inputUnity">Unité</label>
+            <select name="product_unity" class="form-control form-control-sm">
+                {% for unity in unities %}
+                    {% if product.product_unity.name == unity.name %}
+                        <option value="{{ unity }}" id="currentUnity">
+                            {{ unity }}
+                        </option>
+                    {% else %}
+                        <option value="{{ unity }}">
+                            {{ unity }}
+                        </option>
+                    {% endif %}
+                {% endfor %}
+            </select>
+            <script>
+                document.getElementById("currentUnity").selected = true;
+            </script>
+          </div>
+          <div class="form-group col-md-4">
             <label for="inputQuantity">Quantité</label>
             <input type="number" class="form-control form-control-sm" value="{{ product.product_quantity }}" name="product_quantity">
           </div>
@@ -39,10 +59,49 @@
             <input type="number" name="product_sp" value="{{ product.product_sp }}" class="form-control form-control-sm" step="0.01">
           </div>
         </div>
-        <div class="form-group">
-            <label for="product_etag">Etagère</label>
-            <input type="text" class="form-control form-control-sm" value="{{ product.product_etag }}" name="product_etag">
-          </div>
+        <div class="form-row">
+            <div class="form-group col-md-4">
+                <label for="product_etag">Etagère</label>
+                <select name="product_etagere" class="form-control form-control-sm">
+                    {% for shelf in shelfs %}
+                        {% with parts=product.product_id|split:"-" %}
+                            {% if parts.1 == shelf.name %}
+                                <option value="{{ shelf }}" id="currentEtag">
+                                    {{ shelf }}
+                                </option>
+                            {% else %}
+                                <option value="{{ shelf }}">
+                                    {{ shelf }}
+                                </option>
+                            {% endif %}
+                        {% endwith %}
+                    {% endfor %}
+                </select>
+                <script>
+                    document.getElementById("currentEtag").selected = true;
+                </script>
+            </div>
+            <div class="form-group col-md-4">
+                <label for="inputCasier">Casier</label>
+                <div style="display: flex; border: 1px solid rgb(75, 75, 245); padding: 2px;">
+                    {% with parts=product.product_id|split:"-" %}
+                        <p id="prod_cas" style="display: none;">{{parts.2}}</p>
+                        <input id="inputCasier" type="number" min="1" name="product_casier" value="{{ parts.2 }}" class="form-control form-control-sm">
+                    {% endwith %}
+                    <input onchange="change_cas_type()" id="cas-checkbox" type="checkbox" class="form-control form-control-sm">
+                  </div>
+                  <script>
+                    function change_cas_type(){
+                      if(document.getElementById("cas-checkbox").checked){
+                        document.getElementById("inputCasier").type = "text";
+                      }else{
+                        document.getElementById("inputCasier").type = "number";
+                        document.getElementById("inputCasier").value = document.getElementById("prod_cas").innerHTML;
+                      }
+                    }
+                  </script>
+            </div>
+        </div>
         <div class="form-group">
             <label for="inputCompany">Fabriquant</label>
             <input type="text" class="form-control form-control-sm" value="{{ product.product_company }}" name="product_company">
@@ -72,7 +131,7 @@
         <button type="submit" onclick="return confirm('Etes vous sure de vouloir modifier ce élément?')" class="btn btn-primary">MODIFIER</button>
     </form>
     
-    {% if product %}
+    {% if product and request.user.is_superuser %}
     <form action="/delete/{{ product.id }}" method="post">
         {% csrf_token %}
         <button type="submit" onclick="return confirm('Voulez vous supprimer ce élément?')" class="btn btn-primary delete" style="background-color: #ff0000; margin-top: 10px;">SUPPRIMER</button>
