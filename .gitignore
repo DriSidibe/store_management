@@ -1,6 +1,5 @@
 *venv*
 *.env
-*.sqlite3
 *.jpeg
 *.jpg
 *.png
