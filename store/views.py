@@ -41,6 +41,16 @@ def compress_image(uploaded_file, quality=10):
     except Exception as e:
         raise None
 
+def resize_image(image, size=(300, 300)):
+    try:
+        # Redimensionner proportionnellement pour tenir dans 300x300
+        buffer = io.BytesIO()
+        Image.open(image).resize(size).save(buffer, format="JPEG")
+        buffer.seek(0)
+        return buffer
+    except Exception as e:
+        raise e
+
 
 @login_required(login_url="/account/login")
 def index(request):
@@ -84,7 +94,7 @@ def add_product(request):
             return render(request, 'add-product.html', {'y':y, 'shelfs': shelfs, 'unities': unities, 'form_datas': form_datas})
         if 'product_image' in request.FILES:
             image = request.FILES['product_image']
-            product_image = compress_image(convert_to_jpeg(image))
+            product_image = resize_image(compress_image(convert_to_jpeg(image)))
         if (product_quantity<0 or product_sp<0):
             messages.error(request, "Negative value is not allowed.")
         else:
@@ -95,7 +105,12 @@ def add_product(request):
             new_product.save()
             messages.success(request, "Product added successfully!")
             return redirect('/add-product')
-    return render(request, 'add-product.html', {'y':y, 'shelfs': shelfs, 'unities': unities})
+    form_datas = {
+        "product_quantity" : 1,
+        "product_sp" : 1,
+        "product_cp" : 1
+    }
+    return render(request, 'add-product.html', {'y':y, 'shelfs': shelfs, 'unities': unities, 'form_datas': form_datas})
 
 @login_required(login_url="/account/login")
 def delete_product(request):
@@ -125,7 +140,7 @@ def update_product(request):
         toupdate.product_unity = Unity.objects.filter(name=request.POST.get("product_unity", toupdate.product_unity.name)).first()
         if 'product_image' in request.FILES:
             image = request.FILES['product_image']
-            toupdate.product_image.save(image.name, compress_image(convert_to_jpeg(image)))
+            toupdate.product_image.save(image.name, resize_image(compress_image(convert_to_jpeg(image))))
         toupdate.save()
         return redirect('/update-product')
     return render(request, 'update-product.html')
