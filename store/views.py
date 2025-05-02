@@ -59,9 +59,9 @@ def index(request):
         if request.POST['product_id'] != '':
             productList = Product.objects.filter(product_id=request.POST['product_id'].upper())
         else:
-            productList = Product.objects.filter(product_name__contains=request.POST['prod_name'].title())
+            productList = Product.objects.filter(product_name__contains=request.POST['prod_name'].title()).order_by('product_name')
     else:
-        productList = Product.objects.all()
+        productList = Product.objects.order_by('product_name')
     context = {'products':Paginator(productList, page_size).get_page(int(request.POST['page_number'][0])) if 'page_number' in request.POST else Paginator(productList, page_size).get_page(1)}
     return render(request, 'dashboard.html', context)
 
