@@ -27,10 +27,9 @@ MEDIA_DIR = os.path.join(BASE_DIR,'media')
 SECRET_KEY = 'qf^2aagx6w=3ha10h@kyi+-inu8e9mx6wlxk6p21^k2_e-6c7k'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
-ALLOWED_HOSTS = ['192.168.78.108', 'localhost', '127.0.0.1', '192.168.0.122', '192.168.43.180']
-
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '192.168.175.74']
 
 # Application definition
 
@@ -42,10 +41,12 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'store',
-    'accounts'
+    'accounts',
+    'corsheaders'
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -53,6 +54,11 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+]
+
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
 ]
 
 ROOT_URLCONF = 'store_management.urls'
@@ -124,9 +130,8 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/2.2/howto/static-files/
 
 STATIC_URL = '/static/'
-STATICFILES_DIRS = [
-    STATIC_DIR,
-]
+STATICFILES_DIRS = [BASE_DIR + '/' + 'static']
+STATIC_ROOT = BASE_DIR + '/' + 'staticfiles'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = MEDIA_DIR
