@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flux ESP32-CAM</title>
+    <link rel="stylesheet" href="{% static 'css/bootstrap.min.css' %}">
+    <link rel="stylesheet" href="{% static 'css/bootstrap-icons.css' %}">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .video-container {
+            position: relative;
+            margin-bottom: 20px;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            overflow: hidden;
+            background-color: #000;
+        }
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .btn-custom {
+            min-width: 100px;
+        }
+        .camera-selector {
+            width: 100%;
+            max-width: 300px;
+            margin: 0 auto 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Live Stream ESP32-CAM</h1>
+        
+        <div class="camera-selector">
+            <select class="form-select" id="cameraSelect">
+                <option value="0">Sélectionner une caméra</option>
+                {% for camera in cameras_count %}
+                    <option value="{{ camera }}" {% if camera == pk %}selected{% endif %}>
+                        Caméra {{ camera }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div class="video-container">
+            <img id="videoFeed" src="{% url 'video_feed' pk=pk %}" style="width:100%;" />
+        </div>
+        
+        <div class="controls">
+            {% if request.user.is_superuser %}
+            <a href="{% url 'save' pk=pk %}" class="btn btn-primary btn-custom">
+                <i class="bi bi-save"></i> Sauvegarder
+            </a>
+            {% endif %}
+            <button class="btn btn-success btn-custom" onclick="refreshStream()">
+                <i class="bi bi-arrow-clockwise"></i> Actualiser
+            </button>
+            <button class="btn btn-info btn-custom" onclick="toggleFullscreen()">
+                <i class="bi bi-fullscreen"></i> Plein écran
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Camera selection handler
+        document.getElementById('cameraSelect').addEventListener('change', function() {
+            const selectedCamera = this.value;
+            if (selectedCamera !== "0") {
+                // Update the URL without reloading if on the same page
+                if (window.location.pathname.includes("camera_stream")) {
+                    window.location.href = "{% url 'camera_stream' pk=0 %}".replace('0', selectedCamera);
+                } else {
+                    window.location.href = "{% url 'camera_stream' pk=0 %}?camera=" + selectedCamera;
+                }
+            }
+        });
+        
+        // Refresh stream function
+        function refreshStream() {
+            const videoFeed = document.getElementById('videoFeed');
+            const originalSrc = videoFeed.src;
+            videoFeed.src = '';
+            setTimeout(() => {
+                videoFeed.src = originalSrc;
+            }, 100);
+        }
+        
+        // Fullscreen function
+        function toggleFullscreen() {
+            const videoContainer = document.querySelector('.video-container');
+            if (!document.fullscreenElement) {
+                videoContainer.requestFullscreen().catch(err => {
+                    alert(`Erreur plein écran: ${err.message}`);
+                });
+            } else {
+                document.exitFullscreen();
+            }
+        }
+        
+        // Check stream status periodically (every 30 seconds)
+        setInterval(refreshStream, 30000);
+    </script>
+</body>
+</html>
