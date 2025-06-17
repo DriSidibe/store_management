@@ -558,8 +558,8 @@
 
             try {
                 // Set canvas dimensions
-                canvas.width = videoElement.videoWidth || videoElement.clientWidth;
-                canvas.height = videoElement.videoHeight || videoElement.clientHeight;
+                canvas.width = videoElement.videoWidth || videoElement.clientWidth || videoElement.width;
+                canvas.height = videoElement.videoHeight || videoElement.clientHeight || videoElement.height;
 
                 // Try to draw the image
                 context.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
@@ -581,42 +581,57 @@
             }
         }
 
-        // Modified save function with error handling
         function saveSnapshotToServer(canvas) {
-            if (!currentCamera) return;
+            if (!currentCamera || !canvas) return;
 
-            try {
-                canvas.toBlob(blob => {
-                    const formData = new FormData();
-                    formData.append('snapshot', blob, `snapshot_${currentCamera.id}_${Date.now()}.jpg`);
-                    formData.append('camera_id', currentCamera.id);
-
-                    fetch('/camera/save-snapshot/', {
-                        method: 'POST',
-                        headers: {
-                            'X-CSRFToken': getCookie('csrftoken'),
-                        },
-                        body: formData
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        console.log('Snapshot saved to server:', data);
-                        // Add to gallery
-                        const snapshotUrl = URL.createObjectURL(blob);
-                        snapshots.push({
-                            id: Date.now(),
-                            url: snapshotUrl,
-                            timestamp: new Date()
-                        });
-                        updateSnapshotGallery();
-                    })
-                    .catch(error => {
-                        console.error('Error saving snapshot to server:', error);
-                    });
-                }, 'image/jpeg', 0.9);
-            } catch (error) {
-                console.error('Error creating blob:', error);
+            // First validate the canvas can be converted to blob
+            if (canvas.width === 0 || canvas.height === 0) {
+                console.error('Canvas has zero dimensions');
+                return;
             }
+
+            // Convert canvas to blob with error handling
+            canvas.toBlob(function(blob) {
+                if (!blob) {
+                    console.error('Failed to create blob from canvas');
+                    return;
+                }
+
+                try {
+                    const formData = new FormData();
+                    const filename = `snapshot_${currentCamera.id}_${Date.now()}.jpg`;
+                    
+                    // Ensure we're appending a valid Blob
+                    if (blob instanceof Blob) {
+                        formData.append('snapshot', blob, filename);
+                        formData.append('camera_id', currentCamera.id.toString());
+                        
+                        fetch('/camera/save-snapshot/', {
+                            method: 'POST',
+                            headers: {
+                                'X-CSRFToken': getCookie('csrftoken'),
+                            },
+                            body: formData
+                        })
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error(`HTTP error! status: ${response.status}`);
+                            }
+                            return response.json();
+                        })
+                        .then(data => {
+                            console.log('Snapshot saved to server:', data);
+                        })
+                        .catch(error => {
+                            console.error('Error saving snapshot to server:', error);
+                        });
+                    } else {
+                        console.error('Created object is not a Blob:', blob);
+                    }
+                } catch (error) {
+                    console.error('Error preparing form data:', error);
+                }
+            }, 'image/jpeg', 0.9); // 0.9 = quality (90%)
         }
         
         function updateSnapshotGallery() {
