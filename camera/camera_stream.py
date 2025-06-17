@@ -82,11 +82,11 @@ class CameraStream:
                     print(f"Frame encoding error: {e}")
         return None
 
-    def start_recording(self, output_dir="recordings"):
+    def start_recording(self, output_dir=f"recordings"):
         if self.recording:
             return False
             
-        os.makedirs(output_dir, exist_ok=True)
+        os.makedirs(f"{output_dir}_{self.camera_id}", exist_ok=True)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         self.current_filename = os.path.join(output_dir, f"CAM_{self.camera_id}_{timestamp}.avi")
         
