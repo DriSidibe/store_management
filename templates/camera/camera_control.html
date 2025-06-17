@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Camera Control Panel</title>
+    <link rel="stylesheet" href="{% static 'css/bootstrap.min.css' %}">
+    <link rel="stylesheet" href="{% static 'css/bootstrap-icons.css' %}">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f5f5;
+            padding: 20px;
+        }
+        .control-panel {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .video-container {
+            position: relative;
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            overflow: hidden;
+            background-color: #000;
+        }
+        .video-container video, .video-container img {
+            width: 100%;
+            display: block;
+        }
+        .camera-selector {
+            margin-bottom: 20px;
+        }
+        .ptz-controls {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .ptz-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            cursor: pointer;
+        }
+        .settings-panel {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+        .preset-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+        .status-indicator {
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 5px;
+        }
+        .online {
+            background-color: #28a745;
+        }
+        .offline {
+            background-color: #dc3545;
+        }
+        .snapshot-btn {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            z-index: 10;
+        }
+        .snapshot-thumbnail {
+            width: 120px;
+            height: 90px;
+            object-fit: cover;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .snapshot-thumbnail:hover {
+            transform: scale(1.05);
+        }
+        .loading-spinner {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            z-index: 5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-center mb-4">Camera Control Panel</h1>
+        
+        <div class="row">
+            <div class="col-md-8">
+                <div class="video-container">
+                    <div class="loading-spinner" id="loadingSpinner">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                    <video id="cameraStream" autoplay playsinline></video>
+                    <button class="btn btn-primary snapshot-btn" onclick="takeSnapshot()">
+                        <i class="bi bi-camera"></i> Snapshot
+                    </button>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="control-panel">
+                    <div class="camera-selector mb-4">
+                        <h4>Camera Selection</h4>
+                        <select class="form-select" id="cameraSelect" onchange="changeCamera()">
+                            <option value="">Loading cameras...</option>
+                        </select>
+                        <div class="mt-2">
+                            <span class="status-indicator offline" id="statusIndicator"></span>
+                            <span id="cameraStatus">Status: Not connected</span>
+                        </div>
+                    </div>
+                    
+                    <div class="ptz-controls">
+                        <button class="btn btn-secondary ptz-btn" onclick="moveCamera('up')">↑</button>
+                        <div>
+                            <button class="btn btn-secondary ptz-btn" onclick="moveCamera('left')">←</button>
+                            <button class="btn btn-danger ptz-btn" onclick="stopCamera()">■</button>
+                            <button class="btn btn-secondary ptz-btn" onclick="moveCamera('right')">→</button>
+                        </div>
+                        <button class="btn btn-secondary ptz-btn" onclick="moveCamera('down')">↓</button>
+                    </div>
+                    
+                    <div class="zoom-controls d-flex justify-content-between mb-3">
+                        <button class="btn btn-outline-primary" onclick="zoomCamera('in')">Zoom In +</button>
+                        <button class="btn btn-outline-primary" onclick="zoomCamera('out')">Zoom Out -</button>
+                    </div>
+                    
+                    <div class="settings-panel">
+                        <h5>Camera Settings</h5>
+                        <div class="mb-3">
+                            <label for="brightnessControl" class="form-label">Brightness</label>
+                            <input type="range" class="form-range" id="brightnessControl" min="0" max="100" value="50" onchange="adjustSetting('brightness')">
+                        </div>
+                        <div class="mb-3">
+                            <label for="contrastControl" class="form-label">Contrast</label>
+                            <input type="range" class="form-range" id="contrastControl" min="0" max="100" value="50" onchange="adjustSetting('contrast')">
+                        </div>
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" id="hflipSwitch" onchange="toggleFlip('hflip')">
+                            <label class="form-check-label" for="hflipSwitch">Horizontal Flip</label>
+                        </div>
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" id="vflipSwitch" onchange="toggleFlip('vflip')">
+                            <label class="form-check-label" for="vflipSwitch">Vertical Flip</label>
+                        </div>
+                        
+                        <div class="preset-section">
+                            <h5>Preset Positions</h5>
+                            <div class="preset-buttons" id="presetButtons">
+                                <!-- Presets will be loaded dynamically -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row mt-3">
+            <div class="col-12">
+                <h4>Snapshot Gallery</h4>
+                <div id="snapshotGallery" class="d-flex flex-wrap gap-2"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let currentStream = null;
+        let currentCamera = null;
+        const snapshots = [];
+        let cameras = [];
+        let presets = [];
+        
+        // Initialize the page
+        document.addEventListener('DOMContentLoaded', function() {
+            initialization();
+            
+            // Set up periodic status checks
+            setInterval(checkCameraStatus, 30000);
+        });
+
+        // Initialization function
+        function initialization() {
+            loadCameras();
+            //loadPresets();
+        }
+        
+        // Load cameras from Django backend
+        async function loadCameras() {
+            try {
+                const response = await fetch('/camera/cameras/');
+                cameras = await response.json();
+                
+                const cameraSelect = document.getElementById('cameraSelect');
+                cameraSelect.innerHTML = '<option value="">Select a camera</option>';
+
+                console.log('Cameras loaded:', cameras);
+                
+                cameras.cameras.forEach(camera => {
+                    const option = document.createElement('option');
+                    option.value = camera.stream_url;
+                    option.textContent = `${camera.name} (${camera.location || 'No location'})`;
+                    option.dataset.cameraId = camera.id;
+                    cameraSelect.appendChild(option);
+                });
+                
+                // Check initial status
+                checkCameraStatus();
+                
+            } catch (error) {
+                console.error('Error loading cameras:', error);
+                document.getElementById('cameraSelect').innerHTML = '<option value="">Error loading cameras</option>';
+            }
+        }
+        
+        // Load presets from Django backend
+        async function loadPresets() {
+            try {
+                const response = await fetch('/api/presets/');
+                presets = await response.json();
+                
+                const presetButtons = document.getElementById('presetButtons');
+                presetButtons.innerHTML = '';
+                
+                presets.forEach(preset => {
+                    const button = document.createElement('button');
+                    button.className = 'btn btn-sm btn-outline-secondary';
+                    button.textContent = preset.name;
+                    button.onclick = () => gotoPreset(preset.id);
+                    presetButtons.appendChild(button);
+                });
+                
+                // Add save preset button
+                const saveButton = document.createElement('button');
+                saveButton.className = 'btn btn-sm btn-outline-primary';
+                saveButton.innerHTML = '<i class="bi bi-save"></i> Save';
+                saveButton.onclick = savePreset;
+                presetButtons.appendChild(saveButton);
+                
+            } catch (error) {
+                console.error('Error loading presets:', error);
+            }
+        }
+
+        // Set horizontal flip
+        async function setHflip(camera, state) {
+            try {
+                const response = await fetch(`http://${camera.ip_address}/control?var=hmirror&val=${state ? 1 : 0}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                // Try to parse JSON only if there's content
+                const text = await response.text();
+                if (text) {
+                    const res = JSON.parse(text);
+                }
+                
+                return true;
+            } catch (error) {
+                console.error('Error setting horizontal flip:', error);
+                return false;
+            }
+        }
+
+        // Set vertical flip
+        async function setVflip(camera, state) {
+            try {
+                const response = await fetch(`http://${camera.ip_address}/control?var=vflip&val=${state ? 1 : 0}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                // Try to parse JSON only if there's content
+                const text = await response.text();
+                if (text) {
+                    const res = JSON.parse(text);
+                }
+                
+                return true;
+            } catch (error) {
+                console.error('Error setting vertical flip:', error);
+                return false;
+            }
+        }
+        
+        // Change camera stream
+        async function changeCamera() {
+            const cameraSelect = document.getElementById('cameraSelect');
+            const selectedUrl = cameraSelect.value;
+            const selectedCameraId = cameraSelect.options[cameraSelect.selectedIndex]?.dataset.cameraId;
+            
+            if (!selectedUrl) return;
+
+            showLoading(true);
+            
+            // Stop previous stream if exists
+            if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop());
+            }
+            
+            try {
+                const videoElement = document.getElementById('cameraStream');
+                
+                // For direct stream URLs
+                if (selectedUrl.startsWith('http') || selectedUrl.startsWith('rtsp')) {
+                    // Use image tag for MJPEG streams
+                    videoElement.style.display = 'none';
+                    const imgElement = document.createElement('img');
+                    imgElement.id = 'cameraImage';
+                    imgElement.src = selectedUrl;
+                    videoElement.parentNode.insertBefore(imgElement, videoElement.nextSibling);
+                    
+                    currentCamera = cameras.cameras.find(c => c.id == selectedCameraId);
+                    updateStatus(true);
+                    updateControls(selectedCameraId);
+                }
+                
+            } catch (error) {
+                console.error('Error accessing camera:', error);
+                updateStatus(false);
+            } finally {
+                showLoading(false);
+            }
+        }
+        
+        // Check camera status
+        async function checkCameraStatus() {
+            const cameraSelect = document.getElementById('cameraSelect');
+            
+            for (let i = 1; i < cameraSelect.options.length; i++) {
+                const option = cameraSelect.options[i];
+                const cameraId = option.dataset.cameraId;
+                
+                try {
+                    const response = await fetch(`/camera/camera-status/${cameraId}/`);
+                    const data = await response.json();
+                    
+                    option.dataset.status = data.online ? 'online' : 'offline';
+                    
+                    // Update status indicator if this is the current camera
+                    if (currentCamera && currentCamera.id == cameraId) {
+                        updateStatus(data.online);
+                    }
+                    
+                } catch (error) {
+                    console.error('Error checking camera status:', error);
+                    option.dataset.status = 'offline';
+                }
+            }
+        }
+        
+        // PTZ Controls
+        function moveCamera(direction) {
+            if (!currentCamera) return;
+            
+            fetch(`/api/camera/${currentCamera.id}/ptz/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken'),
+                },
+                body: JSON.stringify({
+                    direction: direction,
+                    speed: 50 // Medium speed
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('PTZ command successful:', data);
+            })
+            .catch(error => {
+                console.error('Error sending PTZ command:', error);
+            });
+        }
+        
+        function zoomCamera(action) {
+            if (!currentCamera) return;
+            
+            fetch(`/api/camera/${currentCamera.id}/zoom/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken'),
+                },
+                body: JSON.stringify({
+                    action: action
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Zoom command successful:', data);
+            })
+            .catch(error => {
+                console.error('Error sending zoom command:', error);
+            });
+        }
+        
+        function stopCamera() {
+            if (!currentCamera) return;
+            
+            fetch(`/api/camera/${currentCamera.id}/ptz-stop/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken'),
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Stop command successful:', data);
+            })
+            .catch(error => {
+                console.error('Error sending stop command:', error);
+            });
+        }
+        
+        // Camera settings adjustments
+        function adjustSetting(setting) {
+            if (!currentCamera) return;
+            
+            const value = document.getElementById(`${setting}Control`).value;
+            
+            fetch(`/api/camera/${currentCamera.id}/settings/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken'),
+                },
+                body: JSON.stringify({
+                    setting: setting,
+                    value: value
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Setting updated:', data);
+            })
+            .catch(error => {
+                console.error('Error updating setting:', error);
+            });
+        }
+        
+        function toggleFlip(type) {
+            if (!currentCamera) return;
+            
+            const isChecked = document.getElementById(`${type}Switch`).checked;
+            
+            fetch(`/camera/${currentCamera.id}/flip/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken'),
+                },
+                body: JSON.stringify({
+                    type: type,
+                    enabled: isChecked
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Flip setting updated:', data);
+                if (type === 'hflip') {
+                    setHflip(currentCamera, isChecked);
+                } else if (type === 'vflip') {
+                    setVflip(currentCamera, isChecked);
+                }
+            })
+            .catch(error => {
+                console.error('Error updating flip setting:', error);
+            });
+        }
+        
+        // Preset functions
+        function gotoPreset(presetId) {
+            if (!currentCamera) return;
+            
+            fetch(`/api/camera/${currentCamera.id}/goto-preset/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken'),
+                },
+                body: JSON.stringify({
+                    preset_id: presetId
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Preset activated:', data);
+            })
+            .catch(error => {
+                console.error('Error activating preset:', error);
+            });
+        }
+        
+        function savePreset() {
+            if (!currentCamera) return;
+            
+            const presetName = prompt('Enter a name for this preset:');
+            if (!presetName) return;
+            
+            fetch(`/api/camera/${currentCamera.id}/save-preset/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken'),
+                },
+                body: JSON.stringify({
+                    name: presetName
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Preset saved:', data);
+                //loadPresets(); // Refresh the preset list
+            })
+            .catch(error => {
+                console.error('Error saving preset:', error);
+            });
+        }
+        
+        function takeSnapshot() {
+            if (!currentCamera) return;
+
+            const videoElement = document.getElementById('cameraStream');
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+
+            try {
+                // Set canvas dimensions
+                canvas.width = videoElement.videoWidth || videoElement.clientWidth;
+                canvas.height = videoElement.videoHeight || videoElement.clientHeight;
+
+                // Try to draw the image
+                context.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+
+                // Add timestamp
+                context.font = '16px Arial';
+                context.fillStyle = 'white';
+                context.strokeStyle = 'black';
+                context.lineWidth = 2;
+                const timestamp = new Date().toLocaleString();
+                context.strokeText(timestamp, 10, canvas.height - 20);
+                context.fillText(timestamp, 10, canvas.height - 20);
+
+                // Save the snapshot
+                saveSnapshotToServer(canvas);
+            } catch (error) {
+                console.error('Error taking snapshot:', error);
+                alert('Cannot take snapshot due to security restrictions. The camera stream must come from the same domain or have CORS enabled.');
+            }
+        }
+
+        // Modified save function with error handling
+        function saveSnapshotToServer(canvas) {
+            if (!currentCamera) return;
+
+            try {
+                canvas.toBlob(blob => {
+                    const formData = new FormData();
+                    formData.append('snapshot', blob, `snapshot_${currentCamera.id}_${Date.now()}.jpg`);
+                    formData.append('camera_id', currentCamera.id);
+
+                    fetch('/camera/save-snapshot/', {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': getCookie('csrftoken'),
+                        },
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        console.log('Snapshot saved to server:', data);
+                        // Add to gallery
+                        const snapshotUrl = URL.createObjectURL(blob);
+                        snapshots.push({
+                            id: Date.now(),
+                            url: snapshotUrl,
+                            timestamp: new Date()
+                        });
+                        updateSnapshotGallery();
+                    })
+                    .catch(error => {
+                        console.error('Error saving snapshot to server:', error);
+                    });
+                }, 'image/jpeg', 0.9);
+            } catch (error) {
+                console.error('Error creating blob:', error);
+            }
+        }
+        
+        function updateSnapshotGallery() {
+            const gallery = document.getElementById('snapshotGallery');
+            gallery.innerHTML = '';
+            
+            snapshots.slice().reverse().forEach(snapshot => {
+                const thumbnail = document.createElement('img');
+                thumbnail.src = snapshot.url;
+                thumbnail.className = 'snapshot-thumbnail';
+                thumbnail.title = snapshot.timestamp.toLocaleString();
+                thumbnail.onclick = () => showFullSnapshot(snapshot.url);
+                gallery.appendChild(thumbnail);
+            });
+        }
+        
+        function showFullSnapshot(url) {
+            // You could implement a modal to show the full-size snapshot
+            window.open(url, '_blank');
+        }
+        
+        // Helper functions
+        function updateStatus(online) {
+            const indicator = document.getElementById('statusIndicator');
+            const statusText = document.getElementById('cameraStatus');
+            
+            if (online) {
+                indicator.className = 'status-indicator online';
+                statusText.textContent = 'Status: Online';
+            } else {
+                indicator.className = 'status-indicator offline';
+                statusText.textContent = 'Status: Offline';
+            }
+        }
+        
+        function showLoading(show) {
+            document.getElementById('loadingSpinner').style.display = show ? 'block' : 'none';
+        }
+        
+        function updateControls(cameraId) {
+            const camera = cameras.cameras.find(c => c.id == cameraId);
+            if (!camera) return;
+            
+            // Enable/disable PTZ controls
+            document.querySelectorAll('.ptz-btn').forEach(btn => {
+                btn.disabled = !camera.has_ptz;
+            });
+            
+            // Enable/disable zoom controls
+            document.querySelector('.zoom-controls').style.display = 
+                camera.has_zoom ? 'flex' : 'none';
+            
+            // Update current settings
+            document.getElementById('brightnessControl').value = camera.brightness || 50;
+            document.getElementById('contrastControl').value = camera.contrast || 50;
+            document.getElementById('hflipSwitch').checked = camera.hflip || false;
+            document.getElementById('vflipSwitch').checked = camera.vflip || false;
+
+            setHflip(camera, camera.hflip);
+            setVflip(camera, camera.vflip);
+        }
+        
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+    </script>
+</body>
+</html>
