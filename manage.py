@@ -9,23 +9,22 @@ import threading
 
 
 
-def scheddle():
+def scheddle_():
+    enable = False
     while True:
         current_hour = time.localtime().tm_hour
-        if current_hour >= 19:
-            response = requests.get(f'http://{settings.ALLOWED_HOSTS[-1]:8000}/camera/stop_all/')
-            while response.status_code != 200:
-                response = requests.get(f'http://{settings.ALLOWED_HOSTS[-1]:8000}/camera/stop_all/')
-        elif current_hour > 7 and current_hour < 19:
-            response = requests.get(f'http://{settings.ALLOWED_HOSTS[-1]:8000}/camera/start_all/')
-            while response.status_code != 200:
-                response = requests.get(f'http://{settings.ALLOWED_HOSTS[-1]:8000}/camera/start_all/')
+        if current_hour >= 19 and enable:
+            requests.get(f'http://{settings.ALLOWED_HOSTS[-1]:8000}/camera/stop_all/')
+            enable = False
+        elif current_hour >= 7 and current_hour < 19 and not enable:
+            requests.get(f'http://{settings.ALLOWED_HOSTS[-1]:8000}/camera/start_all/')
+            enable = True
 
 def main():
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'store_management.settings')
     try:
         from django.core.management import execute_from_command_line
-        threading.Thread(target=scheddle, daemon=True).start()
+        #threading.Thread(target=scheddle_, daemon=True).start()
     except ImportError as exc:
         raise ImportError(
             "Couldn't import Django. Are you sure it's installed and "

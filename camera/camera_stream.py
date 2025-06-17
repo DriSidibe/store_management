@@ -146,8 +146,6 @@ class CameraStream:
     def __del__(self):
         self.stop()
 
-camera_stream_ = []
-
 def reinitialize_camera_streams():
     """Reinitialize camera streams from the JSON configuration."""
     global camera_stream_
@@ -161,7 +159,11 @@ def reinitialize_camera_streams():
 
 # Initialisation sécurisée
 try:
-    reinitialize_camera_streams()
+    camera_stream_ = []
+    with open('camera/cameras.json', 'r') as file:
+        cameras = json.load(file)
+        for k, v in cameras.items():
+            camera_stream_.append(CameraStream(f"http://{v['ip']}:81/stream", camera_id=k))
 except Exception as e:
     print(f"Critical error initializing camera: {e}")
     camera_stream_ = []
