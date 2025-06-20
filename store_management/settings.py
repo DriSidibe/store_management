@@ -27,9 +27,9 @@ MEDIA_DIR = os.path.join(BASE_DIR,'media')
 SECRET_KEY = 'qf^2aagx6w=3ha10h@kyi+-inu8e9mx6wlxk6p21^k2_e-6c7k'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '192.168.0.2']
+ALLOWED_HOSTS = ['127.0.0.1', 'localhost']
 
 # Application definition
 
@@ -42,7 +42,8 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'store',
     'accounts',
-    'corsheaders'
+    'corsheaders',
+    'camera',
 ]
 
 MIDDLEWARE = [
