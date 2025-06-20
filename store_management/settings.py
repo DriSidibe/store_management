@@ -30,6 +30,7 @@ SECRET_KEY = 'qf^2aagx6w=3ha10h@kyi+-inu8e9mx6wlxk6p21^k2_e-6c7k'
 DEBUG = True
 
 ALLOWED_HOSTS = ['192.168.0.2', '192.168.239.74', '127.0.0.1', 'localhost']
+HOST = "http://127.0.0.1:8000"
 
 # Application definition
 

@@ -4,11 +4,57 @@ import cv2
 import threading
 import os
 import time
+from PIL import Image
+
+def generate_thumbnail(video_path, output_dir='media/thumbnails', thumbnail_count=1, quality=85):
+    # Create output directory if it doesn't exist
+    os.makedirs(output_dir, exist_ok=True)
+    
+    # Open video file
+    cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        raise ValueError(f"Could not open video file: {video_path}")
+    
+    # Get video properties
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    duration = total_frames / fps
+    
+    print(f"Video: {os.path.basename(video_path)}")
+    print(f"Duration: {duration:.2f} seconds")
+    print(f"Total frames: {total_frames}")
+    
+    # Calculate frame positions for thumbnails
+    frame_positions = [int(total_frames * (i+1)/(thumbnail_count+1)) 
+                      for i in range(thumbnail_count)]
+    
+    thumbnails = []
+    for i, pos in enumerate(frame_positions):
+        cap.set(cv2.CAP_PROP_POS_FRAMES, pos)
+        ret, frame = cap.read()
+        
+        if ret:
+            # Convert BGR (OpenCV) to RGB (PIL)
+            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            img = Image.fromarray(frame_rgb)
+            
+            # Generate filename with timestamp
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"thumbnail_{video_path.split('/')[-1].split('.')[0]}.jpg"
+            output_path = os.path.join(output_dir, filename)
+            
+            # Save with specified quality
+            img.save(output_path, quality=quality)
+            thumbnails.append(output_path)
+            print(f"Generated thumbnail: {output_path}")
+    
+    cap.release()
+    return thumbnails
 
 class CameraStream:
     def __init__(self, url, camera_id):
         self.url = url
-        self.camera_id = camera_id
+        self.camera_id = int(camera_id)
         self.cap = None
         self.frame = None
         self.lock = threading.Lock()
@@ -19,6 +65,7 @@ class CameraStream:
         self.fps = 20
         self.frame_size = (640, 480)
         self.current_filename = None
+        self.file_name = None
         self.codecs_to_try = ['MJPG', 'XVID', 'mp4v']  # Codecs à essayer dans cet ordre
         
         self._initialize_camera()
@@ -88,7 +135,8 @@ class CameraStream:
             
         os.makedirs(output_dir, exist_ok=True)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        self.current_filename = os.path.join(output_dir, f"CAM_{self.camera_id}_{timestamp}.avi")
+        self.current_filename = os.path.join(output_dir, f"CAM_{self.camera_id}_{timestamp}.mp4")
+        self.file_name = self.current_filename
         
         # Essayer différents codecs
         for codec in self.codecs_to_try:
@@ -163,7 +211,8 @@ try:
     with open('camera/cameras.json', 'r') as file:
         cameras = json.load(file)
         for k, v in cameras.items():
-            camera_stream_.append(CameraStream(f"http://{v['ip']}:81/stream", camera_id=k))
+            #camera_stream_.append(CameraStream(f"http://{v['ip']}:81/stream", camera_id=k))
+            camera_stream_.append(CameraStream(0, camera_id=k))
 except Exception as e:
     print(f"Critical error initializing camera: {e}")
     camera_stream_ = []

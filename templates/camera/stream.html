@@ -14,7 +14,7 @@
             background-color: #f5f5f5;
         }
         .container {
-            max-width: 800px;
+            max-width: 1200px;
             margin: 0 auto;
             background: white;
             padding: 20px;
@@ -33,6 +33,16 @@
             border-radius: 4px;
             overflow: hidden;
             background-color: #000;
+            aspect-ratio: 4/3;
+        }
+        #videoFeed, #videoPlayer {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+        }
+        #videoPlayer {
+            display: none;
         }
         .controls {
             display: flex;
@@ -42,7 +52,7 @@
             flex-wrap: wrap;
         }
         .btn-custom {
-            min-width: 100px;
+            min-width: 120px;
         }
         .camera-selector {
             width: 100%;
@@ -50,15 +60,86 @@
             margin: 0 auto 20px;
         }
         .thumbnail-img {
-            object-fit: contain;
-            height: 200px;
+            object-fit: cover;
+            height: 180px;
             width: 100%;
+            transition: transform 0.3s ease;
+            cursor: pointer;
+        }
+        .thumbnail-img:hover {
+            transform: scale(1.03);
+        }
+        .card {
+            transition: box-shadow 0.3s ease;
+        }
+        .card:hover {
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        .video-info {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 8px;
+            font-size: 0.9rem;
+            color: #666;
+        }
+        .loading-spinner {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+        }
+        .stream-error {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #dc3545;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 10px 20px;
+            border-radius: 5px;
+            text-align: center;
+        }
+        .video-controls {
+            position: absolute;
+            bottom: 10px;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .video-container:hover .video-controls {
+            opacity: 1;
+        }
+        .back-to-live {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 10;
+            display: none;
+        }
+        .video-title {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            background: rgba(0,0,0,0.5);
+            padding: 2px 8px;
+            border-radius: 4px;
+            display: none;
+            z-index: 10;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Live Stream ESP32-CAM</h1>       
+        <h1><i class="bi bi-camera-video"></i> Live Stream ESP32-CAM</h1>
+        
         <div class="camera-selector">
             <select class="form-select" id="cameraSelect">
                 <option value="0">Sélectionner une caméra</option>
@@ -71,7 +152,41 @@
         </div>
         
         <div class="video-container">
-            <img id="videoFeed" src="{% url 'video_feed' pk=pk %}" style="width:100%;" />
+            <div class="loading-spinner" id="loadingSpinner">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Chargement...</span>
+                </div>
+            </div>
+            <div class="stream-error" id="streamError">
+                <i class="bi bi-exclamation-triangle-fill"></i> Connexion perdue
+            </div>
+            <img id="videoFeed" src="{% url 'video_feed' pk=pk %}" alt="Flux vidéo de la caméra" />
+            <p id="host" style="display: none;">{{host}}</p>
+            <video id="videoPlayer" controls>
+                <source id="videoSource" src="" type="video/mp4">
+                Votre navigateur ne supporte pas la lecture de vidéos.
+            </video>
+            <div class="video-title" id="videoTitle"></div>
+            <button id="backToLive" class="btn btn-sm btn-primary back-to-live">
+                <i class="bi bi-camera-video"></i> Retour au direct
+            </button>
+            <div class="video-controls">
+                <button class="btn btn-sm btn-light" onclick="document.getElementById('videoPlayer').play()">
+                    <i class="bi bi-play-fill"></i>
+                </button>
+                <button class="btn btn-sm btn-light" onclick="document.getElementById('videoPlayer').pause()">
+                    <i class="bi bi-pause-fill"></i>
+                </button>
+                <button class="btn btn-sm btn-light" onclick="document.getElementById('videoPlayer').volume += 0.1">
+                    <i class="bi bi-volume-up"></i>
+                </button>
+                <button class="btn btn-sm btn-light" onclick="document.getElementById('videoPlayer').volume -= 0.1">
+                    <i class="bi bi-volume-down"></i>
+                </button>
+                <button class="btn btn-sm btn-light" onclick="toggleFullscreenVideo()">
+                    <i class="bi bi-fullscreen"></i>
+                </button>
+            </div>
         </div>
         
         <div class="controls">
@@ -86,27 +201,50 @@
             <button class="btn btn-info btn-custom" onclick="toggleFullscreen()">
                 <i class="bi bi-fullscreen"></i> Plein écran
             </button>
+            <button class="btn btn-warning btn-custom" onclick="toggleStreamQuality()">
+                <i class="bi bi-gear"></i> Qualité
+            </button>
         </div>
+        
         <div class="container py-5">
-    <h1 class="mb-4">🎞️ Vidéos disponibles</h1>
-    <div class="row">
-        {% for video in records %}
-        <div class="col-md-4 mb-4">
-            <div class="card shadow-sm h-100">
-                <!-- Thumbnail image -->
-                <a href="{{ video.url }}" download>
-                    <img src="{% static 'img/video-icon.png' %}" class="card-img-top thumbnail-img" alt="Icône vidéo">
-                </a>
-                <div class="card-body">
-                    <h5 class="card-title text-truncate">{{ video.name }}</h5>
-                    <a href="{{ video.url }}" download class="btn btn-sm btn-primary">📥 Télécharger</a>
-                    <a href="{{ video.url }}" target="_blank" class="btn btn-sm btn-secondary">▶️ Voir</a>
+            <h1 class="mb-4"><i class="bi bi-collection-play"></i> Vidéos disponibles</h1>
+            {% if records %}
+            <div class="row">
+                {% for video in records %}
+                <div class="col-md-4 mb-4">
+                    <div class="card shadow-sm h-100">
+                        <img src="{{ video.thumbnail }}" class="card-img-top thumbnail-img" alt="Miniature vidéo" 
+                             onclick="playVideo('{{ video.url }}', '{{ video.name }}')">
+                        <div class="card-body">
+                            <h5 class="card-title text-truncate">{{ video.name }}</h5>
+                            <div class="video-info">
+                                <span><i class="bi bi-calendar"></i> {{ video.date|date:"d/m/Y" }}</span>
+                                <span><i class="bi bi-clock"></i> {{ video.duration }}</span>
+                            </div>
+                        </div>
+                        <div class="card-footer bg-transparent">
+                            <a href="{{ video.url }}" download class="btn btn-sm btn-primary">
+                                <i class="bi bi-download"></i> Télécharger
+                            </a>
+                            <button class="btn btn-sm btn-secondary" onclick="playVideo('{{ video.url }}', '{{ video.name }}')">
+                                <i class="bi bi-play-circle"></i> Voir
+                            </button>
+                            {% if request.user.is_superuser %}
+                            <a href="#" class="btn btn-sm btn-danger float-end" onclick="confirmDelete('{{ video.id }}')">
+                                <i class="bi bi-trash"></i>
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
                 </div>
+                {% endfor %}
             </div>
+            {% else %}
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle"></i> Aucune vidéo disponible pour le moment.
+            </div>
+            {% endif %}
         </div>
-        {% endfor %}
-    </div>
-</div>
     </div>
 
     <script>
@@ -114,26 +252,26 @@
         document.getElementById('cameraSelect').addEventListener('change', function() {
             const selectedCamera = this.value;
             if (selectedCamera !== "0") {
-                // Update the URL without reloading if on the same page
-                if (window.location.pathname.includes("camera_stream")) {
-                    window.location.href = "{% url 'camera_stream' pk=0 %}".replace('0', selectedCamera);
-                } else {
-                    window.location.href = "{% url 'camera_stream' pk=0 %}?camera=" + selectedCamera;
-                }
+                showLoading();
+                window.location.href = "{% url 'camera_stream' pk=0 %}".replace('0', selectedCamera);
             }
         });
         
         // Refresh stream function
         function refreshStream() {
+            if (document.getElementById('videoPlayer').style.display === 'block') return;
+            
+            showLoading();
             const videoFeed = document.getElementById('videoFeed');
             const originalSrc = videoFeed.src;
             videoFeed.src = '';
             setTimeout(() => {
-                videoFeed.src = originalSrc;
+                videoFeed.src = originalSrc + '?t=' + new Date().getTime();
+                hideError();
             }, 100);
         }
         
-        // Fullscreen function
+        // Fullscreen function for live stream
         function toggleFullscreen() {
             const videoContainer = document.querySelector('.video-container');
             if (!document.fullscreenElement) {
@@ -145,8 +283,142 @@
             }
         }
         
+        // Fullscreen function for recorded video
+        function toggleFullscreenVideo() {
+            const videoPlayer = document.getElementById('videoPlayer');
+            if (!document.fullscreenElement) {
+                videoPlayer.requestFullscreen().catch(err => {
+                    alert(`Erreur plein écran: ${err.message}`);
+                });
+            } else {
+                document.exitFullscreen();
+            }
+        }
+        
+        // Toggle stream quality
+        function toggleStreamQuality() {
+            if (document.getElementById('videoPlayer').style.display === 'block') return;
+            
+            const videoFeed = document.getElementById('videoFeed');
+            const currentSrc = videoFeed.src;
+            
+            if (currentSrc.includes('quality=high')) {
+                videoFeed.src = currentSrc.replace('quality=high', 'quality=low');
+                alert('Qualité réduite activée');
+            } else if (currentSrc.includes('quality=low')) {
+                videoFeed.src = currentSrc.replace('quality=low', 'quality=high');
+                alert('Haute qualité activée');
+            } else {
+                videoFeed.src = currentSrc + (currentSrc.includes('?') ? '&' : '?') + 'quality=low';
+                alert('Qualité réduite activée');
+            }
+        }
+        
+        // Show loading spinner
+        function showLoading() {
+            document.getElementById('loadingSpinner').style.display = 'block';
+            document.getElementById('streamError').style.display = 'none';
+        }
+        
+        // Show error message
+        function showError() {
+            document.getElementById('streamError').style.display = 'block';
+            document.getElementById('loadingSpinner').style.display = 'none';
+        }
+        
+        // Hide error message
+        function hideError() {
+            document.getElementById('streamError').style.display = 'none';
+        }
+        
+        // Video feed error handling
+        document.getElementById('videoFeed').onerror = function() {
+            showError();
+            document.getElementById('loadingSpinner').style.display = 'none';
+        };
+        
+        // Video feed loaded handler
+        document.getElementById('videoFeed').onload = function() {
+            document.getElementById('loadingSpinner').style.display = 'none';
+            hideError();
+        };
+        
+        // Confirm video deletion
+        function confirmDelete(videoId) {
+            if (confirm('Êtes-vous sûr de vouloir supprimer cette vidéo ?')) {
+                fetch(`/delete_video/${videoId}/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}',
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        alert('Erreur lors de la suppression : ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Une erreur est survenue');
+                });
+            }
+        }
+        
+        // Play recorded video in the main viewer
+        function playVideo(videoUrl, videoName) {
+            const videoFeed = document.getElementById('videoFeed');
+            const videoPlayer = document.getElementById('videoPlayer');
+            const videoSource = document.getElementById('videoSource');
+            const videoTitle = document.getElementById('videoTitle');
+            const backToLiveBtn = document.getElementById('backToLive');
+            
+            // Hide live feed and show video player
+            videoFeed.style.display = 'none';
+            videoPlayer.style.display = 'block';
+            backToLiveBtn.style.display = 'block';
+            videoTitle.textContent = videoName;
+            videoTitle.style.display = 'block';
+            
+            // Set video source and play
+            videoSource.src = document.getElementById('host').innerHTML + videoUrl;
+            videoPlayer.load();
+            videoPlayer.play().catch(e => console.log("La lecture automatique a été empêchée:", e));
+        }
+        
+        // Back to live stream
+        document.getElementById('backToLive').addEventListener('click', function() {
+            const videoFeed = document.getElementById('videoFeed');
+            const videoPlayer = document.getElementById('videoPlayer');
+            const videoTitle = document.getElementById('videoTitle');
+            const backToLiveBtn = document.getElementById('backToLive');
+            
+            // Pause and reset video player
+            videoPlayer.pause();
+            videoPlayer.currentTime = 0;
+            
+            // Show live feed and hide video player
+            videoFeed.style.display = 'block';
+            videoPlayer.style.display = 'none';
+            backToLiveBtn.style.display = 'none';
+            videoTitle.style.display = 'none';
+            
+            // Refresh the live stream
+            refreshStream();
+        });
+        
         // Check stream status periodically (every 30 seconds)
-        setInterval(refreshStream, 30000);
+        setInterval(function() {
+            const videoFeed = document.getElementById('videoFeed');
+            if (videoFeed.style.display !== 'none' && videoFeed.complete && videoFeed.naturalWidth > 0) {
+                hideError();
+            } else if (videoFeed.style.display !== 'none') {
+                refreshStream();
+            }
+        }, 30000);
     </script>
 </body>
 </html>
