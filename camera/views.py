@@ -4,12 +4,18 @@ from .models import Camera
 import json
 from django.http import StreamingHttpResponse
 from .camera_stream import CameraStream, camera_stream_, reinitialize_camera_streams
+from pathlib import Path
+from django.conf import settings
+from django.contrib.auth.decorators import login_required
 
+@login_required(login_url="/account/login")
 def camera_page(request, pk):
     camera_count = 0
     with open('camera/cameras.json', 'r') as file:
         camera_count = len(json.load(file))
-    return render(request, 'camera/stream.html', {'pk': pk, 'camera_count': camera_count})
+    media_dir = Path('media/recordings')
+    records = [{'name': f.name, 'url':f'{settings.MEDIA_URL}recordings/{f.name}'} for f in media_dir.iterdir() if f.is_file()]
+    return render(request, 'camera/stream.html', {'pk': pk, 'camera_count': camera_count, 'records': records})
 
 def gen_frames(pk):
     while True:
