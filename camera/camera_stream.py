@@ -212,7 +212,8 @@ try:
         cameras = json.load(file)
         for k, v in cameras.items():
             #camera_stream_.append(CameraStream(f"http://{v['ip']}:81/stream", camera_id=k))
-            camera_stream_.append(CameraStream(0, camera_id=k))
+            #camera_stream_.append(CameraStream(0, camera_id=k))
+            pass
 except Exception as e:
     print(f"Critical error initializing camera: {e}")
     camera_stream_ = []

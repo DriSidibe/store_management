@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'accounts',
     'corsheaders',
     'camera',
+    'django.contrib.humanize',
 ]
 
 MIDDLEWARE = [

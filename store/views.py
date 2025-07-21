@@ -1,3 +1,4 @@
+import json
 from django.shortcuts import render, redirect
 from .models import *
 from django.contrib.auth.decorators import login_required
@@ -7,6 +8,14 @@ from PIL import Image
 import io
 import random
 from django.contrib import messages
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.core import serializers
+from django.views.decorators.http import require_http_methods
+from django.contrib.auth.decorators import user_passes_test
+from django.utils import timezone
+from django.db.models import Sum
+import datetime
 
 def convert_to_jpeg(uploaded_file):
     try:
@@ -52,19 +61,73 @@ def resize_image(image, size=(300, 300)):
         raise e
 
 
+@csrf_exempt
 @login_required(login_url="/account/login")
 def index(request):
     page_size = 20
     if request.method == 'POST' and 'page_number' not in request.POST:
-        if request.POST['product_id'] != '':
+        if 'product_id' in request.POST and request.POST['product_id'] != '':
             productList = Product.objects.filter(product_id=request.POST['product_id'].upper())
         else:
             productList = Product.objects.filter(product_name__contains=request.POST['prod_name'].title()).order_by('product_name')
+        if 'suggestion' in request.POST:
+            if request.POST["suggestion"] != "_":
+                products = json.loads(serializers.serialize('json', productList))
+                productList_ = [p["fields"] for p in products]
+                return JsonResponse(productList_, safe=False)
+            productList = [productList[0]]
     else:
         productList = Product.objects.order_by('product_name')
     context = {'products':Paginator(productList, page_size).get_page(int(request.POST['page_number'][0])) if 'page_number' in request.POST else Paginator(productList, page_size).get_page(1)}
     return render(request, 'dashboard.html', context)
 
+
+@login_required(login_url="/account/login")
+@user_passes_test(lambda u: u.is_superuser)
+def metrics(request):
+    now = timezone.now()
+    today = now.date()
+    start_week = today - datetime.timedelta(days=today.weekday())
+    start_month = today.replace(day=1)
+    start_year = today.replace(month=1, day=1)
+
+    sales = Sell.objects.all()
+    products = Product.objects.all()
+
+    kpis = {
+        'total_sales': sales.aggregate(Sum('total_price'))['total_price__sum'] or 0,
+        'daily_sales': sales.filter(sell_date__date=today).aggregate(Sum('total_price'))['total_price__sum'] or 0,
+        'weekly_sales': sales.filter(sell_date__date__gte=start_week).aggregate(Sum('total_price'))['total_price__sum'] or 0,
+        'monthly_sales': sales.filter(sell_date__date__gte=start_month).aggregate(Sum('total_price'))['total_price__sum'] or 0,
+        'yearly_sales': sales.filter(sell_date__date__gte=start_year).aggregate(Sum('total_price'))['total_price__sum'] or 0,
+        'total_transactions': sales.count(),
+    }
+
+    print(kpis)
+
+    return render(request, 'metrics.html', {
+        'kpis': kpis,
+        'products': products
+    })
+
+@require_http_methods(["GET"])
+@login_required(login_url="/account/login")
+def sell_product(request):
+    if "view" in request.GET:
+        return render(request, 'sell-product.html')
+    quantity = request.GET.get("quantity")
+    price = request.GET.get("price")
+
+    product = None
+    if "productId" in request.GET:
+        product = Product.objects.get(product_id=request.GET.get("productId"))
+
+    if "product_name" in request.GET:
+        product_name = request.GET.get("product_name")
+    sell = Sell(product=product, quantity=quantity, total_price=price, unit_price=int(price)/float(quantity), product_name=product_name)
+    sell.save()
+    messages.success(request, "Produit vendu avec success!")
+    return redirect('/')
 
 @login_required(login_url="/account/login")
 def add_product(request):

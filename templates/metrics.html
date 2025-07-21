@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load custom_filters %}
+{% load humanize %}
+
+{% block content %}
+    <div class="content form-wrapper container-fluid">
+        <h2>Statistiques</h2>
+        <!-- Métriques sur les produits -->
+        <div class="row mb-4 metrics">
+            <div class="col-md-3 col-6 mb-3">
+                <div class="card text-white bg-primary shadow">
+                    <div class="card-body">
+                        <h5 class="card-title">Produits en stock</h5>
+                        <p class="card-text display-6">{{ products|length }}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 col-6 mb-3">
+                <div class="card text-white bg-success shadow">
+                    <div class="card-body">
+                        <h5 class="card-title">Quantité totale</h5>
+                        <p class="card-text display-6">{{ products|calc_total:"product_quantity" }}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 col-6 mb-3">
+                <div class="card text-white bg-warning shadow">
+                    <div class="card-body">
+                        <h5 class="card-title">Valeur achat totale</h5>
+                        <p class="card-text display-6">{{ products|calc_total_price:"product_quantity,product_cp" }} FCFA</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 col-6 mb-3">
+                <div class="card text-white bg-danger shadow">
+                    <div class="card-body">
+                        <h5 class="card-title">Valeur vente potentielle</h5>
+                        <p class="card-text display-6">{{ products|calc_total_price:"product_quantity,product_sp" }} FCFA</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- KPI Ventes -->
+        <div class="row mb-4">
+            {% for key, label, color in [
+                ('daily_sales', "Aujourd'hui", "success"),
+                ('weekly_sales', "Cette semaine", "info"),
+                ('monthly_sales', "Ce mois-ci", "warning"),
+                ('yearly_sales', "Cette année", "primary"),
+                ('total_sales', "Total des ventes", "dark"),
+                ('total_transactions', "Nombre de ventes", "secondary")
+            ] %}
+                <div class="col-md-4 col-6 mb-3">
+                    <div class="card bg-{{ color }} text-white shadow">
+                        <div class="card-body">
+                            <h5 class="card-title">Chiffre d'affaires {{ label }}</h5>
+                            <p class="card-text display-6">
+                                {% if 'sales' in key %}
+                                    {{ kpis[key]|intcomma }} FCFA
+                                {% else %}
+                                    {{ kpis[key] }}
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
