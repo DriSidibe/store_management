@@ -42,26 +42,45 @@
             </div>
         </div>
 
+        <h4>Chiffre d'affaire</h4>
+
         <!-- KPI Ventes -->
         <div class="row mb-4">
-            {% for key, label, color in [
-                ('daily_sales', "Aujourd'hui", "success"),
-                ('weekly_sales', "Cette semaine", "info"),
-                ('monthly_sales', "Ce mois-ci", "warning"),
-                ('yearly_sales', "Cette année", "primary"),
-                ('total_sales', "Total des ventes", "dark"),
-                ('total_transactions', "Nombre de ventes", "secondary")
-            ] %}
+            {% for key, label, color in kpi_items %}
                 <div class="col-md-4 col-6 mb-3">
                     <div class="card bg-{{ color }} text-white shadow">
                         <div class="card-body">
                             <h5 class="card-title">Chiffre d'affaires {{ label }}</h5>
                             <p class="card-text display-6">
                                 {% if 'sales' in key %}
-                                    {{ kpis[key]|intcomma }} FCFA
+                                    {{ kpis|get_item:key|intcomma }} FCFA
                                 {% else %}
-                                    {{ kpis[key] }}
+                                    {{ kpis|get_item:key }}
                                 {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+
+        <h4>Bénéfice</h4>
+
+        <!-- KPI Bénéfices -->
+        <div class="row mb-4">
+            {% for key, label, color in profit_kpis %}
+                <div class="col-md-4 col-6 mb-3">
+                    <div class="card bg-{{ color }} text-white shadow">
+                        <div class="card-body">
+                            <h5 class="card-title">Bénéfice {{ label }}</h5>
+                            <p class="card-text display-6">
+                                {% with profit=kpis|get_item:key %}
+                                    {% if profit != None %}
+                                        {{ profit|floatformat:0|intcomma }} FCFA
+                                    {% else %}
+                                        0 FCFA
+                                    {% endif %}
+                                {% endwith %}
                             </p>
                         </div>
                     </div>
@@ -70,4 +89,7 @@
         </div>
     </div>
 </div>
+<script>
+    document.getElementsByClassName('copyright')[0].style.display = 'none';
+</script>
 {% endblock %}

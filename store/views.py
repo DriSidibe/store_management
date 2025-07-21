@@ -16,6 +16,7 @@ from django.contrib.auth.decorators import user_passes_test
 from django.utils import timezone
 from django.db.models import Sum
 import datetime
+from django.db.models import Sum, F, ExpressionWrapper, FloatField
 
 def convert_to_jpeg(uploaded_file):
     try:
@@ -94,6 +95,11 @@ def metrics(request):
     sales = Sell.objects.all()
     products = Product.objects.all()
 
+    benefit_expr = ExpressionWrapper(
+        (F('product__product_sp') - F('product__product_cp')) * F('quantity'),
+        output_field=FloatField()
+    )
+
     kpis = {
         'total_sales': sales.aggregate(Sum('total_price'))['total_price__sum'] or 0,
         'daily_sales': sales.filter(sell_date__date=today).aggregate(Sum('total_price'))['total_price__sum'] or 0,
@@ -101,14 +107,33 @@ def metrics(request):
         'monthly_sales': sales.filter(sell_date__date__gte=start_month).aggregate(Sum('total_price'))['total_price__sum'] or 0,
         'yearly_sales': sales.filter(sell_date__date__gte=start_year).aggregate(Sum('total_price'))['total_price__sum'] or 0,
         'total_transactions': sales.count(),
+        'daily_profit': sales.filter(sell_date__date=today).aggregate(profit=Sum(benefit_expr))['profit'] or 0,
+        'weekly_profit': sales.filter(sell_date__date__gte=start_week).aggregate(profit=Sum(benefit_expr))['profit'] or 0,
+        'monthly_profit': sales.filter(sell_date__date__gte=start_month).aggregate(profit=Sum(benefit_expr))['profit'] or 0,
+        'yearly_profit': sales.filter(sell_date__date__gte=start_year).aggregate(profit=Sum(benefit_expr))['profit'] or 0,
+        'total_profit': sales.aggregate(profit=Sum(benefit_expr))['profit'] or 0,
     }
 
-    print(kpis)
-
-    return render(request, 'metrics.html', {
+    context = {'kpi_items': [
+            ('daily_sales', "Aujourd'hui", "success"),
+            ('weekly_sales', "Cette semaine", "info"),
+            ('monthly_sales', "Ce mois-ci", "warning"),
+            ('yearly_sales', "Cette année", "primary"),
+            ('total_sales', "Total des ventes", "dark"),
+            ('total_transactions', "Nombre de ventes", "secondary")
+        ],
+        'profit_kpis':[
+            ('daily_profit', "Aujourd'hui", "success"),
+            ('weekly_profit', "Cette semaine", "info"),
+            ('monthly_profit', "Ce mois-ci", "warning"),
+            ('yearly_profit', "Cette année", "primary"),
+            ('total_profit', "Total", "dark")
+        ],
         'kpis': kpis,
         'products': products
-    })
+    }
+
+    return render(request, 'metrics.html', context)
 
 @require_http_methods(["GET"])
 @login_required(login_url="/account/login")
