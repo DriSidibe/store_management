@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load custom_filters %}
+
+{% block content %}
+    <div class="content form-wrapper container-fluid">
+        <h2 class="mb-4">Produits vendus le {{ selected_date|date:"d/m/Y" }}</h2>
+
+        <!-- Formulaire pour sélectionner la date -->
+        <form method="get" class="row g-2 mb-4">
+            <div class="col-auto">
+                <input type="date" name="date" class="form-control" value="{{ selected_date|date:'Y-m-d' }}">
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-primary">Afficher</button>
+            </div>
+        </form>
+
+        {% if sales %}
+            <table class="table table-bordered table-striped">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Produit</th>
+                        <th>Quantité</th>
+                        <th>Prix unitaire (FCFA)</th>
+                        <th>Prix total (FCFA)</th>
+                        <th>Bénéfice total (FCFA)</th>
+                        <th>Bénéfice cumulé (FCFA)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for sale in sales %}
+                        <tr>
+                            {% if sale.product %}
+                                <td>{{ sale.product.product_name }}</td>
+                            {% else %}
+                                <td>{{ sale.product_name }}</td>
+                            {% endif %}
+                            <td>{{ sale.quantity }}</td>
+                            <td>{{ sale.unit_price|intcomma }}</td>
+                            <td>{{ sale.total_price|intcomma }}</td>
+                            {% for k, v in benefits.items %}
+                                {% if k == sale.pk %}
+                                    {% for t in v %}
+                                        <td>{{ t|intcomma }}</td>
+                                    {% endfor %}
+                                {% endif %}
+                            {% endfor %}
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <p class="fw-bold mt-3">
+                Total vendu : {{ total|intcomma }} FCFA
+            </p>
+        {% else %}
+            <p class="text-muted">Aucune vente pour cette date.</p>
+        {% endif %}
+    </div>
+{% endblock %}

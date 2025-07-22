@@ -146,13 +146,39 @@ def sell_product(request):
     product = None
     if "productId" in request.GET:
         product = Product.objects.get(product_id=request.GET.get("productId"))
-
+    product_name = ""
     if "product_name" in request.GET:
         product_name = request.GET.get("product_name")
+        
     sell = Sell(product=product, quantity=quantity, total_price=price, unit_price=int(price)/float(quantity), product_name=product_name)
     sell.save()
     messages.success(request, "Produit vendu avec success!")
     return redirect('/')
+
+@login_required(login_url="/account/login")
+def selled_products(request):
+    date_str = request.GET.get('date')
+    if date_str:
+        selected_date = datetime.datetime.strptime(date_str, "%Y-%m-%d").date()
+    else:
+        selected_date = timezone.now().date()
+
+    sales = Sell.objects.filter(sell_date__date=selected_date)
+
+    total = sales.aggregate(Sum('total_price'))['total_price__sum'] or 0
+
+    sales = Sell.objects.filter(sell_date__date=selected_date)
+    benefits = {_sale.pk: [float(_sale.total_price) - (float(_sale.quantity) * float(_sale.product.product_cp)), sum(
+        (float(sale.unit_price) - sale.product.product_cp) * sale.quantity
+        for sale in sales if sale.pk <= _sale.pk
+        )] for _sale in sales}
+
+    return render(request, 'selled-products.html', {
+        'sales': sales,
+        'selected_date': selected_date,
+        'total': total,
+        'benefits': benefits
+    })
 
 @login_required(login_url="/account/login")
 def add_product(request):

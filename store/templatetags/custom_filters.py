@@ -29,3 +29,13 @@ def calc_total_price(products, field_pair):
 @register.filter
 def get_item(dictionary, key):
     return dictionary.get(key, 0)
+
+@register.filter
+def sub(value, arg):
+    """Subtracts the arg from the value"""
+    return float(value) - float(arg)
+
+@register.filter
+def mul(value, arg):
+    """Multiplies the value by arg"""
+    return float(value) * float(arg)
