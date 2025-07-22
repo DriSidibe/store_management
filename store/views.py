@@ -1,4 +1,5 @@
 import json
+import os
 from django.shortcuts import render, redirect
 from .models import *
 from django.contrib.auth.decorators import login_required
@@ -17,6 +18,9 @@ from django.utils import timezone
 from django.db.models import Sum
 import datetime
 from django.db.models import Sum, F, ExpressionWrapper, FloatField
+from reportlab.lib.pagesizes import A4
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle
+from reportlab.lib import colors
 
 def convert_to_jpeg(uploaded_file):
     try:
@@ -142,6 +146,7 @@ def sell_product(request):
         return render(request, 'sell-product.html')
     quantity = request.GET.get("quantity")
     price = request.GET.get("price")
+    customer = request.GET.get("customer", None)
 
     product = None
     if "productId" in request.GET:
@@ -150,13 +155,136 @@ def sell_product(request):
     if "product_name" in request.GET:
         product_name = request.GET.get("product_name")
         
-    sell = Sell(product=product, quantity=quantity, total_price=price, unit_price=int(price)/float(quantity), product_name=product_name)
+    sell = Sell(product=product, quantity=quantity, total_price=price, unit_price=int(price)/float(quantity), product_name=product_name, customer_name=customer)
     sell.save()
     messages.success(request, "Produit vendu avec success!")
     return redirect('/')
 
 @login_required(login_url="/account/login")
+def update_sale(request):
+    if "delete" in request.GET:
+        pk = int(request.GET.get("pk", None))
+        sale = Sell.objects.get(pk=pk)
+        sale.delete()
+        return redirect("selled-products")
+    if "create" in request.GET:
+        pk = int(request.GET.get("pk", None))
+        sale = Sell.objects.get(pk=pk)
+        product_id = "AM"+"-A"+"-1"+"-"+f'{random.randint(1, 99999):05d}'
+        new_product = Product(product_id=product_id, product_name=sale.product_name, product_unity=Unity.objects.all().first(), product_quantity=1, product_cp=1.0, product_sp=1.0)
+        new_product.save()
+        sale.product = Product.objects.get(product_id=product_id)
+        sale.save()
+        return redirect("selled-products")
+    sale = Sell.objects.get(pk=int(request.GET["pk"]))
+    for element in request.GET:
+        val = request.GET.get(element, None) if request.GET.get(element, None) not in ["null", "nul"] else None
+        if val:
+            if element != 'pk' and element != "product":
+                setattr(sale, element, val)
+            elif element == "product":
+                p = Product.objects.get(pk=val)
+                sale.product = p
+    sale.unit_price=int(sale.total_price)/float(sale.quantity)
+    sale.save()
+    return JsonResponse({"status": "OK"})
+
+@require_http_methods(["GET"])
+@login_required(login_url="/account/login")
+def print_approvioning(request):
+    rev = Ravitaillement.objects.all()
+    
+    # Sample commande list
+    commande = []
+    for r in rev:
+        p_name = r.product_name if not r.product else r.product.product_name
+        commande.append({"Produit":p_name, "Quantité": "...", "Prix":"..........."})
+
+    # Convert to table format
+    data = [["Produit", "Quantité", "Prix (FCFA)"]]
+    for item in commande:
+        data.append([item["Produit"], item["Quantité"], item["Prix"]])
+
+    # Create PDF
+    pdf_file = "commande_table.pdf"
+    pdf = SimpleDocTemplate(pdf_file, pagesize=A4)
+
+    # Create table and style
+    table = Table(data)
+    table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.grey),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
+        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTSIZE", (0, 0), (-1, -1), 9),
+        ("BOTTOMPADDING", (0, 0), (-1, 0), 10),
+        ("BACKGROUND", (0, 1), (-1, -1), colors.beige),
+        ("GRID", (0, 0), (-1, -1), 1, colors.black),
+    ]))
+
+    # Create folder if it doesn't exist
+    output_folder = "static/pdf_reports"
+    os.makedirs(output_folder, exist_ok=True)
+
+    # PDF path
+    pdf_file = os.path.join(output_folder, "commande.pdf")
+    pdf = SimpleDocTemplate(pdf_file, pagesize=A4)
+
+    # Build PDF
+    pdf.build([table])
+    messages.success(request, "Pdf généré avec success! clickez sur le ce liens http://127.0.0.1:8000/static/pdf_reports/commande.pdf")
+    return redirect("approvioning")
+
+@require_http_methods(["GET"])
+@login_required(login_url="/account/login")
+def approvioning(request):
+    if "product_name" not in request.GET and "pk" not in request.GET:
+        return render(request, 'approvioning.html', {"ravitaillement": Ravitaillement.objects.all(), "products": Product.objects.all()})
+    product_name = request.GET.get("product_name", None)
+    product = None
+    app = None
+    if request.GET["pk"] != "-":
+        pk = request.GET.get("pk", None)
+        product = Product.objects.get(pk=pk)
+        product_name = product.product_name
+        app = Ravitaillement(product=product, product_name=None)
+    else:
+        if product_name:
+            product_name = product_name.strip()
+            app = Ravitaillement(product_name=product_name)
+    for rav in Ravitaillement.objects.all():
+        rav_pro_name = rav.product.product_name if rav.product else None
+        if product_name.strip() in [rav.product_name, rav_pro_name]:
+            return render(request, 'approvioning.html', {"ravitaillement": Ravitaillement.objects.all(), "products": Product.objects.all()})
+    if app:
+        app.save()
+        messages.success(request, "Approvisionnement enregistré avec success!")
+    return render(request, 'approvioning.html', {"ravitaillement": Ravitaillement.objects.all(), "products": Product.objects.all()})
+
+@login_required(login_url="/account/login")
+def update_ravitaillement(request):
+    pk = int(request.GET.get("pk", None))
+    rav = Ravitaillement.objects.get(pk=pk)
+    if "create" in request.GET:
+        product_id = "AM"+"-A"+"-1"+"-"+f'{random.randint(1, 99999):05d}'
+        new_product = Product(product_id=product_id, product_name=rav.product_name, product_unity=Unity.objects.all().first(), product_quantity=1, product_cp=1.0, product_sp=1.0)
+        new_product.save()
+    rav.delete()
+    messages.success(request, "Opération éffectuée avec succès!")
+    return redirect("approvioning")
+
+@login_required(login_url="/account/login")
+def products(request):
+    _products = Product.objects.all().order_by("product_name")
+    products = {product.pk: product.product_name for product in _products}
+    return JsonResponse(products)
+
+@login_required(login_url="/account/login")
 def selled_products(request):
+    salled_product = None
+    if 'selledId' in request.GET:
+        #salled_product = Sell.objects.get(pk=request.GET['selledId'])
+        pass
     date_str = request.GET.get('date')
     if date_str:
         selected_date = datetime.datetime.strptime(date_str, "%Y-%m-%d").date()
@@ -170,14 +298,15 @@ def selled_products(request):
     sales = Sell.objects.filter(sell_date__date=selected_date)
     benefits = {_sale.pk: [float(_sale.total_price) - (float(_sale.quantity) * float(_sale.product.product_cp)), sum(
         (float(sale.unit_price) - sale.product.product_cp) * sale.quantity
-        for sale in sales if sale.pk <= _sale.pk
-        )] for _sale in sales}
-
+        for sale in sales if sale.pk <= _sale.pk and sale.product
+        )] for _sale in sales if _sale.product}
+    
     return render(request, 'selled-products.html', {
         'sales': sales,
         'selected_date': selected_date,
         'total': total,
-        'benefits': benefits
+        'benefits': benefits,
+        'salled_product': salled_product,
     })
 
 @login_required(login_url="/account/login")

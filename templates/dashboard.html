@@ -170,7 +170,7 @@
 </div>
 
 <script>
-    function openModal() {
+    function openModal(v) {
 
         // Create outer container
         const container = document.createElement('div');
@@ -194,7 +194,7 @@
         // Create product id input
         const productId = document.createElement('input');
         productId.name = 'productId';
-        productId.value = document.getElementById("selledProduct_id").value;
+        productId.value = v.value;
         productId.style.display = "none";
         productId.required = true;
 
@@ -206,6 +206,13 @@
         priceInput.id = 'total-price';
         priceInput.placeholder = 'Total';
         priceInput.required = true;
+
+        // Create total price input
+        const customerInput = document.createElement('input');
+        customerInput.type = 'text';
+        customerInput.name = 'customer';
+        customerInput.id = 'customer';
+        customerInput.placeholder = 'Client';
 
         // Create total price input
         const valiadte = document.createElement('input');
@@ -227,6 +234,7 @@
         modal.appendChild(productId);
         modal.appendChild(quantityInput);
         modal.appendChild(priceInput);
+        modal.appendChild(customerInput);
         modal.appendChild(valiadte);
         modal.appendChild(cancel);
 
@@ -239,7 +247,7 @@
 
     function sell(e){
         e.preventDefault()
-        openModal();
+        openModal(e.explicitOriginalTarget.children[1]);
     }
 
     function hideSuggestions() {

@@ -61,6 +61,15 @@ class Sell(models.Model):
     total_price = models.DecimalField(decimal_places=2, default=0, max_digits=10, null=True, blank=True)
     quantity = models.IntegerField(default=0, null=True, blank=True)
     sell_date = models.DateTimeField(auto_now=True)
+    customer_name = models.CharField(max_length=255, null=True)
+
+    def productInfo(self):
+        info = {'name':self.product.product_name, 'price': self.product.product_sp}
+        return info
+    
+class Ravitaillement(models.Model):
+    product = models.ForeignKey(Product, on_delete=models.SET_NULL, null=True)
+    product_name = models.CharField(max_length=255, null=True)
 
     def productInfo(self):
         info = {'name':self.product.product_name, 'price': self.product.product_sp}

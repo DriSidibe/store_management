@@ -4,57 +4,247 @@
 
 {% block content %}
     <div class="content form-wrapper container-fluid">
-        <h2 class="mb-4">Produits vendus le {{ selected_date|date:"d/m/Y" }}</h2>
-
-        <!-- Formulaire pour sélectionner la date -->
-        <form method="get" class="row g-2 mb-4">
-            <div class="col-auto">
-                <input type="date" name="date" class="form-control" value="{{ selected_date|date:'Y-m-d' }}">
-            </div>
-            <div class="col-auto">
-                <button type="submit" class="btn btn-primary">Afficher</button>
-            </div>
-        </form>
-
-        {% if sales %}
-            <table class="table table-bordered table-striped">
-                <thead class="table-dark">
-                    <tr>
-                        <th>Produit</th>
-                        <th>Quantité</th>
-                        <th>Prix unitaire (FCFA)</th>
-                        <th>Prix total (FCFA)</th>
-                        <th>Bénéfice total (FCFA)</th>
-                        <th>Bénéfice cumulé (FCFA)</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for sale in sales %}
-                        <tr>
-                            {% if sale.product %}
-                                <td>{{ sale.product.product_name }}</td>
-                            {% else %}
-                                <td>{{ sale.product_name }}</td>
-                            {% endif %}
-                            <td>{{ sale.quantity }}</td>
-                            <td>{{ sale.unit_price|intcomma }}</td>
-                            <td>{{ sale.total_price|intcomma }}</td>
-                            {% for k, v in benefits.items %}
-                                {% if k == sale.pk %}
-                                    {% for t in v %}
-                                        <td>{{ t|intcomma }}</td>
-                                    {% endfor %}
-                                {% endif %}
-                            {% endfor %}
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-            <p class="fw-bold mt-3">
-                Total vendu : {{ total|intcomma }} FCFA
-            </p>
+        {% if salled_product %}
         {% else %}
-            <p class="text-muted">Aucune vente pour cette date.</p>
+            <h2 class="mb-4">Produits vendus le {{ selected_date|date:"d/m/Y" }}</h2>
+
+            <!-- Formulaire pour sélectionner la date -->
+            <form method="get" class="row g-2 mb-4">
+                <div class="col-auto">
+                    <input type="date" name="date" class="form-control" value="{{ selected_date|date:'Y-m-d' }}">
+                </div>
+                <div class="col-auto">
+                    <button type="submit" class="btn btn-primary">Afficher</button>
+                </div>
+            </form>
+
+            {% if sales %}
+                <table class="table table-bordered table-striped">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Client</th>
+                            <th>Produit</th>
+                            <th>Quantité</th>
+                            <th>Prix unitaire (FCFA)</th>
+                            <th>Prix total (FCFA)</th>
+                            <th>Bénéfice total (FCFA)</th>
+                            <th>Bénéfice cumulé (FCFA)</th>
+                            {% if request.user.is_superuser %}
+                                <th>Actions</th>
+                            {% endif %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for sale in sales %}
+                            <tr id={{sale.pk}}>
+                                <td>{{ sale.customer_name }}</td>
+                                {% if sale.product %}
+                                    <td class="editable product">{{ sale.product.product_name }}</td>
+                                {% else %}
+                                    <td class="editable product">{{ sale.product_name }}</td>
+                                {% endif %}
+                                <td id="quantity" class="editable">{{ sale.quantity }}</td>
+                                {% if sale.product %}
+                                    <td>{{ sale.unit_price|intcomma }}</td>
+                                {% else %}
+                                    <td></td>
+                                {% endif %}
+                                <td id="total_price" class="editable">{{ sale.total_price|intcomma }}</td>
+                                {% if sale.product %}
+                                    {% for k, v in benefits.items %}
+                                        {% if k == sale.pk %}
+                                            {% for t in v %}
+                                                <td>{{ t|intcomma }}</td>
+                                            {% endfor %}
+                                        {% endif %}
+                                    {% endfor %}
+                                {% else %}
+                                    <td></td>
+                                    <td></td>
+                                {% endif %}
+                                {% if request.user.is_superuser %}
+                                    <td style="display: flex; gap: 20px;">
+                                        <form id="delete-form-{{sale.pk}}" action="/update-sale/" method="GET">
+                                            <input type="hidden" name="delete" value="true">
+                                            <input type="hidden" name="pk" value="{{sale.pk}}">
+                                            <svg onclick="confirmDelete({{sale.pk}})" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#3867d6" class="bi bi-trash" viewBox="0 0 16 16">
+                                    <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/>
+                                    <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/>
+                                    </svg>
+                                    </form>
+                                    {% if not sale.product %}
+                                    <form id="create-form-{{sale.pk}}" action="/update-sale/" method="GET">
+                                    <input type="hidden" name="create" value="true">
+                                    <input type="hidden" name="pk" value="{{sale.pk}}">
+                                    <svg onclick="confirmCreate({{sale.pk}})" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="green" class="bi bi-check" viewBox="0 0 16 16">
+                                    <path d="M10.97 4.97a.75.75 0 0 1 1.07 1.05l-3.99 4.99a.75.75 0 0 1-1.08.02L4.324 8.384a.75.75 0 1 1 1.06-1.06l2.094 2.093 3.473-4.425z"/>
+                                    </svg>
+                                </form>
+                                {% endif %}
+                                    </td>
+                                {% endif %}
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                <p class="fw-bold mt-3">
+                    Total vendu : {{ total|intcomma }} FCFA
+                </p>
+            {% else %}
+                <p class="text-muted">Aucune vente pour cette date.</p>
+            {% endif %}
         {% endif %}
     </div>
+
+    <script>
+        let edit = {pk: null, product: null, quantity: null, total_price: null};
+        let params = "";
+
+        function confirmDelete(p) {
+            if (confirm('Are you sure you want to delete this item?')) {
+                document.getElementById('delete-form-'+p).submit();
+            }
+        }
+
+        function confirmCreate(p) {
+            if (confirm('Are you sure you want to check this item?')) {
+                document.getElementById('create-form-'+p).submit();
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+
+            const cells = document.querySelectorAll('td.editable');
+            let lastClickedCell = null;
+            let clickTimeout = null;
+
+            cells.forEach(cell => {
+                // Handle double click
+                cell.addEventListener('dblclick', function(e) {
+                    // Clear the single-click timeout
+                    if (clickTimeout) {
+                        clearTimeout(clickTimeout);
+                        clickTimeout = null;
+                    }
+                    
+                    handleDoubleClick(e.target);
+                });
+            });
+
+            async function save() {
+                await fetch('/update-sale/'+params.slice(0, params.length - 1), {
+                    method: 'GET'
+                }).catch((e) => console.error("error while saving! ", e));
+            }
+
+            async function handleDoubleClick(cell) {
+                // Clear selections
+                document.querySelectorAll('.selected-cell').forEach(el => {
+                    el.classList.remove('selected-cell');
+                });
+                
+                // Highlight and edit cell
+                cell.classList.add('editing-cell');
+
+                // Create input field for editing
+                const originalContent = cell.textContent;
+                let input = document.createElement('input');
+
+                if(cell.classList.contains('product')){
+                    await fetch('/products/', {
+                        method: 'GET',
+                    }).then((response) => response.json()
+                        .then((data) => {
+                            input = document.createElement('select');
+                            input.name = "product_name";
+                            Object.entries(data).forEach(([key, product]) => {
+                                const option = document.createElement('option');
+                                option.innerHTML = product;
+                                option.value = key;
+
+                                if(originalContent == product)
+                                {
+                                    option.selected = true;
+                                }
+                                
+                                input.appendChild(option);
+                            });
+                            // Replace cell content with input
+                            cell.innerHTML = '';
+                            cell.appendChild(input);
+                            input.focus();
+                    })
+                    ).catch((e) => console.log(`Ne peut pas recupérer les produits ${e}`))
+                }else{
+                    input.type = 'number';
+                    input.value = parseInt(originalContent.split(" ").join(""), 10);
+                    input.classList.add(cell.id);
+                    input.min = 1;
+                    input.style.width = '100%';
+                    input.style.border = 'none';
+                    input.style.padding = '4px';
+
+                    // Replace cell content with input
+                    cell.innerHTML = '';
+                    cell.appendChild(input);
+                    input.focus();
+                }
+                
+                // Handle input completion
+                function finishEdit() {
+                    let newValue = null;
+                    edit.pk = input.parentElement.parentElement.id;
+                    if(input.tagName === 'SELECT'){
+                        newValue = input.options[input.selectedIndex].text;
+                        edit.product = input.value;
+                        edit.quantity = null;
+                        edit.total_price = null;
+                    }else{
+                        edit.product = null;
+                        newValue = input.value.trim();
+                        if(input.classList.contains('quantity')){
+                            edit.quantity = newValue;
+                            edit.total_price = null;
+                        }
+                        if(input.classList.contains('total_price')){
+                            edit.total_price = newValue;
+                            edit.quantity = null;
+                        }
+                    }
+                    params = "?";
+                    Object.entries(edit).forEach(([key, value]) => {
+                        params += key+"="+value+"&"
+                    });
+                    save();
+                    cell.textContent = newValue;
+                    cell.classList.remove('editing-cell');
+                    
+                    // Remove event listeners
+                    input.removeEventListener('blur', finishEdit);
+                    input.removeEventListener('keydown', handleKeyDown);
+                }
+                
+                function handleKeyDown(e) {
+                    if (e.key === 'Enter') {
+                        finishEdit();
+                    } else if (e.key === 'Escape') {
+                        cell.textContent = originalContent;
+                        cell.classList.remove('editing-cell');
+                    }
+                }
+                
+                input.addEventListener('blur', finishEdit);
+                input.addEventListener('keydown', handleKeyDown);
+            }
+
+            function getCellInfo(cell) {
+                return {
+                    content: cell.textContent.trim(),
+                    row: cell.parentNode.rowIndex,
+                    column: cell.cellIndex,
+                    rowData: Array.from(cell.parentNode.cells).map(td => td.textContent.trim())
+                };
+            }
+        });
+    </script>
 {% endblock %}
