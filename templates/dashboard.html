@@ -125,7 +125,7 @@
                             <p>{{product.product_quantity}}</p>
                         </div>
                             <div style="width: 100%; display: flex; gap: 20px; flex-wrap: wrap; justfy-content: enter;">
-                                <form onsubmit="sell(event)">
+                                <form onsubmit="sell(this)">
                                         {% csrf_token %}
                                         <input id="selledProduct_id" style="display: none;" value="{{product.product_id}}"/>
                                         <input type="submit" class="btn btn-success" value="vendre"/>
@@ -247,7 +247,7 @@
 
     function sell(e){
         e.preventDefault()
-        openModal(e.explicitOriginalTarget.children[1]);
+        openModal(e.target.children[1]);
     }
 
     function hideSuggestions() {
