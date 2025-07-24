@@ -205,10 +205,6 @@ def print_approvioning(request):
     for item in commande:
         data.append([item["Produit"], item["Quantité"], item["Prix"]])
 
-    # Create PDF
-    pdf_file = "commande_table.pdf"
-    pdf = SimpleDocTemplate(pdf_file, pagesize=A4)
-
     # Create table and style
     table = Table(data)
     table.setStyle(TableStyle([
@@ -223,7 +219,7 @@ def print_approvioning(request):
     ]))
 
     # Create folder if it doesn't exist
-    output_folder = "static/pdf_reports"
+    output_folder = "/var/www/static/pdf_reports/"
     os.makedirs(output_folder, exist_ok=True)
 
     # PDF path

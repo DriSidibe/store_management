@@ -29,7 +29,7 @@ SECRET_KEY = 'qf^2aagx6w=3ha10h@kyi+-inu8e9mx6wlxk6p21^k2_e-6c7k'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['192.168.1.3', '192.168.179.74', '192.168.239.74', '127.0.0.1', 'localhost']
+ALLOWED_HOSTS = ['192.168.1.3', "192.168.111.108", '127.0.0.1', 'localhost']
 HOST = "http://127.0.0.1:8000"
 
 # Application definition
@@ -137,7 +137,13 @@ STATICFILES_DIRS = [BASE_DIR + '/' + 'static']
 STATIC_ROOT = BASE_DIR + '/' + 'staticfiles'
 
 MEDIA_URL = '/media/'
-MEDIA_ROOT = MEDIA_DIR
+
+IS_PRODUCTION = True
+
+if IS_PRODUCTION:
+    MEDIA_ROOT = "/var/www/media"
+else:
+    MEDIA_ROOT = MEDIA_DIR
 
 MESSAGE_TAGS = {
     messages.ERROR: 'danger'

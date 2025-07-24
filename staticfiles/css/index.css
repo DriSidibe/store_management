@@ -164,3 +164,58 @@ nav ul li a:hover {
    float: right;
 }
 
+#suggestions-list{
+    padding: 20px;
+    max-height: 200px;
+    overflow-y: auto;
+    position: absolute;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    background-color: #f1e9e9;
+}
+
+#suggestions-list li {
+    padding: 10px;
+    cursor: pointer;
+}
+
+#sell-container{
+    width: 100vw;
+    height: 100vh;
+    position: fixed;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    gap: 20px;
+    background-color: rgba(0,0,0,0.9);
+    z-index: 100;
+}
+
+#sell-modal{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.metrics .card {
+    border-radius: 0.5rem;
+    text-align: center;
+}
+
+.metrics .card-text {
+    font-size: 1.5rem;
+    font-weight: bold;
+}
+
+.metrics .card-title {
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+svg:hover{
+    cursor: pointer;
+}
