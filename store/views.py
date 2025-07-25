@@ -19,7 +19,8 @@ from django.db.models import Sum
 import datetime
 from django.db.models import Sum, F, ExpressionWrapper, FloatField
 from reportlab.lib.pagesizes import A4
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Spacer
+from reportlab.platypus import Image as reportlab_image
 from reportlab.lib import colors
 
 def convert_to_jpeg(uploaded_file):
@@ -193,23 +194,37 @@ def update_sale(request):
 @login_required(login_url="/account/login")
 def print_approvioning(request):
     rev = Ravitaillement.objects.all()
+
+    # Create folder if it doesn't exist
+    output_folder = "/var/www/static/pdf_reports/"
+    os.makedirs(output_folder, exist_ok=True)
+
+    images_folder = "/var/www/"
     
     # Sample commande list
     commande = []
     for r in rev:
         p_name = r.product_name if not r.product else r.product.product_name
-        commande.append({"Produit":p_name, "Quantité": "...", "Prix":"..........."})
+        p_image = "-"
+        if not r.product:
+            if r.image:
+                p_image = r.image.url
+        else:
+            p_image = r.product.product_image.url
+        commande.append({"Produit":p_name, "Image":f"{images_folder}{p_image}", "Quantité": "...", "Prix":"..........."})
 
     # Convert to table format
-    data = [["Produit", "Quantité", "Prix (FCFA)"]]
+    data = [["Produit", "Image", "Quantité", "Prix (FCFA)"]]
     for item in commande:
-        data.append([item["Produit"], item["Quantité"], item["Prix"]])
+        img_cell = reportlab_image(item["Image"], width=25, height=25) if item["Image"] and os.path.exists(item["Image"]) else ""
+        data.append([item["Produit"], img_cell, item["Quantité"], item["Prix"]])
 
     # Create table and style
-    table = Table(data)
+    col_widths = [300, 50, 70, 70]
+    table = Table(data, col_widths)
     table.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), colors.grey),
-        ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.black),
         ("ALIGN", (0, 0), (-1, -1), "CENTER"),
         ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
         ("FONTSIZE", (0, 0), (-1, -1), 9),
@@ -217,10 +232,6 @@ def print_approvioning(request):
         ("BACKGROUND", (0, 1), (-1, -1), colors.beige),
         ("GRID", (0, 0), (-1, -1), 1, colors.black),
     ]))
-
-    # Create folder if it doesn't exist
-    output_folder = "/var/www/static/pdf_reports/"
-    os.makedirs(output_folder, exist_ok=True)
 
     # PDF path
     pdf_file = os.path.join(output_folder, "commande.pdf")
@@ -231,16 +242,15 @@ def print_approvioning(request):
     messages.success(request, "Pdf généré avec success! clickez sur le ce liens http://127.0.0.1:8000/static/pdf_reports/commande.pdf")
     return redirect("approvioning")
 
-@require_http_methods(["GET"])
 @login_required(login_url="/account/login")
 def approvioning(request):
-    if "product_name" not in request.GET and "pk" not in request.GET:
+    if request.method == "GET":
         return render(request, 'approvioning.html', {"ravitaillement": Ravitaillement.objects.all(), "products": Product.objects.all()})
-    product_name = request.GET.get("product_name", None)
+    product_name = request.POST.get("product_name", None)
     product = None
     app = None
-    if request.GET["pk"] != "-":
-        pk = request.GET.get("pk", None)
+    if request.POST["pk"] != "-":
+        pk = request.POST.get("pk", None)
         product = Product.objects.get(pk=pk)
         product_name = product.product_name
         app = Ravitaillement(product=product, product_name=None)
@@ -253,6 +263,11 @@ def approvioning(request):
         if product_name.strip() in [rav.product_name, rav_pro_name]:
             return render(request, 'approvioning.html', {"ravitaillement": Ravitaillement.objects.all(), "products": Product.objects.all()})
     if app:
+        if not product and product_name:
+            image = request.FILES.get('product_image', None)
+            if image:
+                product_image = resize_image(compress_image(convert_to_jpeg(image)))
+                app.image.save(image.name, product_image)
         app.save()
         messages.success(request, "Approvisionnement enregistré avec success!")
     return render(request, 'approvioning.html', {"ravitaillement": Ravitaillement.objects.all(), "products": Product.objects.all()})
@@ -263,7 +278,7 @@ def update_ravitaillement(request):
     rav = Ravitaillement.objects.get(pk=pk)
     if "create" in request.GET:
         product_id = "AM"+"-A"+"-1"+"-"+f'{random.randint(1, 99999):05d}'
-        new_product = Product(product_id=product_id, product_name=rav.product_name, product_unity=Unity.objects.all().first(), product_quantity=1, product_cp=1.0, product_sp=1.0)
+        new_product = Product(product_id=product_id, product_name=rav.product_name, product_unity=Unity.objects.all().first(), product_quantity=1, product_cp=1.0, product_sp=1.0, product_image=rav.image)
         new_product.save()
     rav.delete()
     messages.success(request, "Opération éffectuée avec succès!")

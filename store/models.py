@@ -70,6 +70,7 @@ class Sell(models.Model):
 class Ravitaillement(models.Model):
     product = models.ForeignKey(Product, on_delete=models.SET_NULL, null=True)
     product_name = models.CharField(max_length=255, null=True)
+    image = models.ImageField(upload_to ='products_images/', blank=True, null=True, default=None) 
 
     def productInfo(self):
         info = {'name':self.product.product_name, 'price': self.product.product_sp}
