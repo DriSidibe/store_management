@@ -5,7 +5,7 @@
 {% block content %}
     <div class="content form-wrapper container-fluid">
         <h2>A Approvisionner</h2>
-        <form enctype="multipart/form-data" action="/approvioning/" method="POST">
+        <form id="csrf-getter" enctype="multipart/form-data" action="/approvioning/" method="POST">
             {% csrf_token %}
             <div class="form-row">
                 <div style="max-width: 300px;" class="form-group col-12 col-md-4">
@@ -27,16 +27,25 @@
                 <div style="max-width: 100px;" class="form-group col-12 col-md-4">
                     <input type="submit" value="valider" class="btn btn-success btn-block">
                 </div>
-                <div onclick="window.location.href='/print-approvioning/'" style="width: 100%; display: inline;">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="25" height="25" fill="green" class="bi bi-printer" viewBox="0 0 16 16">
-                    <path d="M2.5 8a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1"/>
-                    <path d="M5 1a2 2 0 0 0-2 2v2H2a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h1v1a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-1h1a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-1V3a2 2 0 0 0-2-2zM4 3a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2H4zm1 5a2 2 0 0 0-2 2v1H2a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1v-1a2 2 0 0 0-2-2zm7 2v3a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1"/>
-                    </svg>
+                <div style="width: 100%; display: flex; justify-content: space-between; padding: 20px;">
+                    <div onclick="window.location.href='/print/?target=commande'" style="display: inline;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="25" height="25" fill="green" class="bi bi-printer" viewBox="0 0 16 16">
+                            <path d="M2.5 8a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1"/>
+                            <path d="M5 1a2 2 0 0 0-2 2v2H2a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h1v1a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-1h1a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-1V3a2 2 0 0 0-2-2zM4 3a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2H4zm1 5a2 2 0 0 0-2 2v1H2a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1v-1a2 2 0 0 0-2-2zm7 2v3a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1"/>
+                        </svg>
+                    </div>
+                    <div style="display: flex; gap: 10px" style="display: inline;">
+                        <img id="t" onclick="update_center(event)" style="width:25px;" src="{% static 'images/stock.png' %}"/>
+                        <img id="enter" onclick="update_center(event)" style="width:25px;" src="{% static 'images/enter.png' %}"/>
+                        <svg onclick="add_approvisioning()" xmlns="http://www.w3.org/2000/svg" width="25" height="25" fill="green" class="bi bi-plus-lg" viewBox="0 0 16 16">
+                            <path fill-rule="evenodd" d="M8 2a.5.5 0 0 1 .5.5v5h5a.5.5 0 0 1 0 1h-5v5a.5.5 0 0 1-1 0v-5h-5a.5.5 0 0 1 0-1h5v-5A.5.5 0 0 1 8 2"/>
+                        </svg>
+                    </div>
                 </div>
             </div>
         </form>
         {% if ravitaillement %}
-            <table class="table table-bordered table-striped">
+            <table id="table-appro" class="table table-bordered table-striped">
                 <thead class="table-dark">
                     <tr>
                         <th>Nom du produit</th>
@@ -108,8 +117,151 @@
                 Rien à ravitailler
             </div>
         {% endif %}
+            <div id="table-entrance" style="display: none;">
+                {% if entrances %}
+                <table class="table table-bordered table-striped">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Date</th>
+                            <th>Nom fournisseur</th>
+                            <th>Tel</th>
+                            <th>Image</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for ent in entrances %}
+                        <tr>
+                            <td>{{ ent.date }}</td>
+                            <td>{{ ent.supplier_name }}</td>
+                            <td>{{ ent.Suppler_tel }}</td>
+                            {% if ent.image %}
+                                <td>
+                                    <div  class="form-group">
+                                        <img style="max-height: 50px;" id="imagePreview" src="{{ ent.image.url }}" alt="Image" style="width:150px;" />
+                                    </div>
+                                </td>
+                            {% else %}
+                                <td>
+                                    <div  class="form-group">
+                                        <img style="max-height: 50px;" id="imagePreview" src="{% static 'images/image.png' %}" alt="Image" style="width:150px;" />
+                                    </div>
+                                </td>
+                            {% endif %}
+                            <script>
+                                document.addEventListener('DOMContentLoaded', function(){
+                                    previewImage();
+                                });
+                            </script>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                    <div style="height: 100px; text-align: center;">
+                    Aucune donnés disponible
+                </div>
+            {% endif %}
+            </div>
     </div>
     <script>
+        function update_center(e){
+            if(e.target.id == "enter"){
+                document.getElementById('table-entrance').style.display = 'block';
+                document.getElementById('table-appro').style.display = 'none';
+            }else{
+                document.getElementById('table-entrance').style.display = 'none';
+                document.getElementById('table-appro').style.display = 'table';
+            }
+        }
+
+        function openModal() {
+
+            // Create outer container
+            const container = document.createElement('div');
+            container.id = 'sell-container';
+
+            // Create modal
+            const modal = document.createElement('form');
+            modal.enctype = "multipart/form-data";
+            modal.method = 'POST';
+            modal.action = '/add-approvioning/'
+            modal.id = 'sell-modal';
+
+            // Create quantity input
+            const csrf = document.createElement('input');
+            csrf.type = 'hidden';
+            csrf.name = 'csrfmiddlewaretoken';
+            csrf.value = document.getElementById("csrf-getter").children[0].value;
+
+            // Create quantity input
+            const supplierNameInput = document.createElement('input');
+            supplierNameInput.type = 'text';
+            supplierNameInput.id = 'supplierName';
+            supplierNameInput.name = 'supplierName';
+            supplierNameInput.placeholder = 'Entreprise';
+            supplierNameInput.required = true;
+
+            // Create quantity input
+            const supplierPhoneInput = document.createElement('input');
+            supplierPhoneInput.type = 'tel';
+            supplierPhoneInput.id = 'phone';
+            supplierPhoneInput.name = 'phone';
+            supplierPhoneInput.placeholder = '0101010101';
+            supplierPhoneInput.pattern = '^[0-9]+$';
+            supplierPhoneInput.required = false;
+
+            // Create quantity input
+            const approvioningImageInput = document.createElement('input');
+            approvioningImageInput.type = 'file';
+            approvioningImageInput.classList.add("form-control");
+            approvioningImageInput.classList.add("form-control-sm");
+            approvioningImageInput.name = 'image';
+            approvioningImageInput.required = true;
+
+            // Create quantity input
+            const approvioningDateInput = document.createElement('input');
+            approvioningDateInput.type = 'date';
+            approvioningDateInput.classList.add("form-control");
+            approvioningDateInput.classList.add("form-control-sm");
+            approvioningDateInput.name = 'date';
+            approvioningDateInput.required = false;
+
+            // Create total price input
+            const valiadte = document.createElement('input');
+            valiadte.classList.add("btn-success");
+            valiadte.type = 'submit';
+            valiadte.value = 'Enregistrer';
+
+            // Create total price input
+            const cancel = document.createElement('input');
+            cancel.classList.add("btn-danger");
+            cancel.type = 'button';
+            cancel.value = 'Annuler';
+
+            cancel.addEventListener('click', () => {
+                document.body.removeChild(container);
+            });
+
+            // Append inputs to modal
+            modal.appendChild(supplierNameInput);
+            modal.appendChild(csrf);
+            modal.appendChild(supplierPhoneInput);
+            modal.appendChild(approvioningImageInput);
+            modal.appendChild(approvioningDateInput);
+            modal.appendChild(valiadte);
+            modal.appendChild(cancel);
+
+            // Append modal to container
+            container.appendChild(modal);
+
+            // Append container to body
+            document.body.appendChild(container);
+        }
+
+        function add_approvisioning(){
+            openModal();
+        }
+
         function toggleImage(e){
             let a = document.getElementById("typed-name");
             if(a.value.length != 0){

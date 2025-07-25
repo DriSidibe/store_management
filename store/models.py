@@ -75,3 +75,13 @@ class Ravitaillement(models.Model):
     def productInfo(self):
         info = {'name':self.product.product_name, 'price': self.product.product_sp}
         return info
+    
+class SupplieEntrance(models.Model):
+    supplier_name = models.CharField(max_length=255, null=True)
+    Suppler_tel = models.CharField(max_length=255, null=True)
+    image = models.ImageField(upload_to ='products_images/', blank=True, null=True, default=None) 
+    date = models.DateTimeField()
+
+    def SupplieEntranceInfo(self):
+        info = {'name':self.supplier_name, 'date': self.date}
+        return info

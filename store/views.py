@@ -190,62 +190,117 @@ def update_sale(request):
     sale.save()
     return JsonResponse({"status": "OK"})
 
-@require_http_methods(["GET"])
-@login_required(login_url="/account/login")
-def print_approvioning(request):
-    rev = Ravitaillement.objects.all()
-
+def print_params(request, target, table):
     # Create folder if it doesn't exist
     output_folder = "/var/www/static/pdf_reports/"
     os.makedirs(output_folder, exist_ok=True)
 
-    images_folder = "/var/www/"
-    
-    # Sample commande list
-    commande = []
-    for r in rev:
-        p_name = r.product_name if not r.product else r.product.product_name
-        p_image = "-"
-        if not r.product:
-            if r.image:
-                p_image = r.image.url
-        else:
-            p_image = r.product.product_image.url
-        commande.append({"Produit":p_name, "Image":f"{images_folder}{p_image}", "Quantité": "...", "Prix":"..........."})
-
-    # Convert to table format
-    data = [["Produit", "Image", "Quantité", "Prix (FCFA)"]]
-    for item in commande:
-        img_cell = reportlab_image(item["Image"], width=25, height=25) if item["Image"] and os.path.exists(item["Image"]) else ""
-        data.append([item["Produit"], img_cell, item["Quantité"], item["Prix"]])
-
-    # Create table and style
-    col_widths = [300, 50, 70, 70]
-    table = Table(data, col_widths)
     table.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), colors.grey),
-        ("TEXTCOLOR", (0, 0), (-1, 0), colors.black),
-        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-        ("FONTSIZE", (0, 0), (-1, -1), 9),
-        ("BOTTOMPADDING", (0, 0), (-1, 0), 10),
-        ("BACKGROUND", (0, 1), (-1, -1), colors.beige),
-        ("GRID", (0, 0), (-1, -1), 1, colors.black),
-    ]))
+            ("BACKGROUND", (0, 0), (-1, 0), colors.grey),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.black),
+            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTSIZE", (0, 0), (-1, -1), 9),
+            ("BOTTOMPADDING", (0, 0), (-1, 0), 10),
+            ("BACKGROUND", (0, 1), (-1, -1), colors.beige),
+            ("GRID", (0, 0), (-1, -1), 1, colors.black),
+        ]))
 
     # PDF path
-    pdf_file = os.path.join(output_folder, "commande.pdf")
+    pdf_file = os.path.join(output_folder, f"{target}.pdf")
     pdf = SimpleDocTemplate(pdf_file, pagesize=A4)
 
     # Build PDF
     pdf.build([table])
-    messages.success(request, "Pdf généré avec success! clickez sur le ce liens http://127.0.0.1:8000/static/pdf_reports/commande.pdf")
-    return redirect("approvioning")
+    messages.success(request, f"Pdf généré avec success! clickez sur le ce liens http://127.0.0.1:8000/static/pdf_reports/{target}.pdf")
+
+@require_http_methods(["GET"])
+@login_required(login_url="/account/login")
+def print(request):
+    target = request.GET["target"]
+    images_folder = "/var/www/"
+
+    if target == "commande":
+        rev = Ravitaillement.objects.all()
+
+        
+        # Sample commande list
+        commande = []
+        for r in rev:
+            p_name = r.product_name if not r.product else r.product.product_name
+            p_image = "-"
+            if not r.product:
+                if r.image:
+                    p_image = r.image.url
+            else:
+                p_image = r.product.product_image.url
+            commande.append({"Produit":p_name, "Image":f"{images_folder}{p_image}", "Quantité": "...", "Prix":"..........."})
+
+        # Convert to table format
+        data = [["Produit", "Image", "Quantité", "Prix (FCFA)"]]
+        for item in commande:
+            img_cell = reportlab_image(item["Image"], width=25, height=25) if item["Image"] and os.path.exists(item["Image"]) else ""
+            data.append([item["Produit"], img_cell, item["Quantité"], item["Prix"]])
+
+        # Create table and style
+        col_widths = [300, 50, 70, 70]
+        table = Table(data, col_widths)
+        print_params(request, target, table)
+        return redirect("approvioning")
+    elif target == "produits":
+        products = Product.objects.all()
+
+        
+        # Sample commande list
+        commande = []
+        for r in products:
+            p_name = r.product_name
+            p_image = "-"
+            if r.product_image:
+                p_image = r.product_image.url
+            commande.append({"Produit":p_name, "Image":f"{images_folder}{p_image}", "Prix":"..........."})
+
+        # Convert to table format
+        data = [["Produit", "Image", "Prix (FCFA)"]]
+        for item in commande:
+            img_cell = reportlab_image(item["Image"], width=25, height=25) if item["Image"] and os.path.exists(item["Image"]) else ""
+            data.append([item["Produit"], img_cell, item["Prix"]])
+
+        # Create table and style
+        col_widths = [300, 50, 70]
+        table = Table(data, col_widths)
+        print_params(request, target, table)
+        return redirect("index")
+    elif target == "vente":
+        rev = Sell.objects.all()
+
+        
+        # Sample commande list
+        commande = []
+        for r in rev:
+            p_name = r.product_name if not r.product else r.product.product_name
+            p_sell_date = str(r.sell_date).split(" ")[0]
+            p_unit_price = r.unit_price
+            p_total_price = r.total_price
+            p_quantity = r.quantity
+            p_customer_name  = r.customer_name 
+            commande.append({"Date": p_sell_date, "Produit":p_name, "Client":p_customer_name, "Quantité": p_quantity, "Prix Unitaire":p_unit_price, "Prix Total":p_total_price})
+
+        # Convert to table format
+        data = [["date", "Produit", "Client", "Quantité", "Prix Unitaire", "Prix Total"]]
+        for item in commande:
+            data.append([item["Date"], item["Produit"], item["Client"], item["Quantité"], item["Prix Unitaire"], item["Prix Total"]])
+
+        # Create table and style
+        table = Table(data)
+        print_params(request, target, table)
+        return redirect("selled-products")
 
 @login_required(login_url="/account/login")
 def approvioning(request):
+    entrances = SupplieEntrance.objects.all()
     if request.method == "GET":
-        return render(request, 'approvioning.html', {"ravitaillement": Ravitaillement.objects.all(), "products": Product.objects.all()})
+        return render(request, 'approvioning.html', {"ravitaillement": Ravitaillement.objects.all(), "entrances":entrances, "products": Product.objects.all()})
     product_name = request.POST.get("product_name", None)
     product = None
     app = None
@@ -261,7 +316,7 @@ def approvioning(request):
     for rav in Ravitaillement.objects.all():
         rav_pro_name = rav.product.product_name if rav.product else None
         if product_name.strip() in [rav.product_name, rav_pro_name]:
-            return render(request, 'approvioning.html', {"ravitaillement": Ravitaillement.objects.all(), "products": Product.objects.all()})
+            return render(request, 'approvioning.html', {"ravitaillement": Ravitaillement.objects.all(), "entrances":entrances, "products": Product.objects.all()})
     if app:
         if not product and product_name:
             image = request.FILES.get('product_image', None)
@@ -270,7 +325,24 @@ def approvioning(request):
                 app.image.save(image.name, product_image)
         app.save()
         messages.success(request, "Approvisionnement enregistré avec success!")
-    return render(request, 'approvioning.html', {"ravitaillement": Ravitaillement.objects.all(), "products": Product.objects.all()})
+    return render(request, 'approvioning.html', {"ravitaillement": Ravitaillement.objects.all(), "entrances":entrances, "products": Product.objects.all()})
+
+@login_required(login_url="/account/login")
+def add_approvioning(request):
+    name = request.POST.get("supplierName", None)
+    phone = request.POST.get("phone", None)
+    date = request.POST.get("date", None)
+    phone = request.POST.get("phone", None)
+    image = request.FILES.get('image', None)
+    if not date:
+        date = datetime.date.today()
+    supplie_entrance = SupplieEntrance(supplier_name=name, Suppler_tel=phone, date=date)
+    if image:
+        _image = resize_image(compress_image(convert_to_jpeg(image)))
+        supplie_entrance.image.save(image.name, _image)
+    supplie_entrance.save()
+    messages.success(request, "Entré enregistré avec success!")
+    return redirect("approvioning")
 
 @login_required(login_url="/account/login")
 def update_ravitaillement(request):

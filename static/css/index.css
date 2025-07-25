@@ -216,6 +216,6 @@ nav ul li a:hover {
     font-weight: 600;
 }
 
-svg:hover{
+svg:hover, #enter:hover{
     cursor: pointer;
 }
