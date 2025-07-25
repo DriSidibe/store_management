@@ -111,7 +111,7 @@
             <input name="product_image" type="file" class="form-control form-control-sm"/>
             {% if product %}
                 {% if product.product_image %}
-                    <img id="imagePreview" src="{{ product.product_image.url }}" alt="Image Preview" style="width:150px;" />
+                    <img style="max-height: 100px;" id="imagePreview" src="{{ product.product_image.url }}" alt="Image Preview" style="width:150px;" />
                 {% else %}
                     <img id="imagePreview" src="{% static 'images/image.png' %}"/>
                 {% endif %}
