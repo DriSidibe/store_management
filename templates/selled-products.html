@@ -158,6 +158,7 @@
                 // Create input field for editing
                 const originalContent = cell.textContent;
                 let input = document.createElement('input');
+                let sortedByValue = null;
 
                 if(cell.classList.contains('product')){
                     await fetch('/products/', {
@@ -166,18 +167,19 @@
                         .then((data) => {
                             input = document.createElement('select');
                             input.name = "product_name";
-                            Object.entries(data).forEach(([key, product]) => {
+                            sortedByValue = Object.entries(data)
+                                .sort((a, b) => a[1].localeCompare(b[1]));
+                            console.log(sortedByValue);
+                            sortedByValue.forEach(([key, product]) => {
                                 const option = document.createElement('option');
                                 option.innerHTML = product;
                                 option.value = key;
-
-                                if(originalContent == product)
-                                {
-                                    option.selected = true;
+                                if (originalContent == product) {
+                                option.selected = true;
                                 }
-                                
                                 input.appendChild(option);
                             });
+
                             // Replace cell content with input
                             cell.innerHTML = '';
                             cell.appendChild(input);
@@ -224,8 +226,12 @@
                     Object.entries(edit).forEach(([key, value]) => {
                         params += key+"="+value+"&"
                     });
-                    save();
-                    cell.textContent = newValue;
+                    if (confirm('Are you sure you want to update this item?')) {
+                        save();
+                        cell.textContent = newValue;
+                    }else{
+                        cell.textContent = originalContent;
+                    }
                     cell.classList.remove('editing-cell');
                     
                     // Remove event listeners

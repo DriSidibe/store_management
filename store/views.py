@@ -159,7 +159,7 @@ def sell_product(request):
     sell = Sell(product=product, quantity=quantity, total_price=price, unit_price=int(price)/float(quantity), product_name=product_name, customer_name=customer)
     sell.save()
     messages.success(request, "Produit vendu avec success!")
-    return redirect('/')
+    return redirect('selled-products')
 
 @login_required(login_url="/account/login")
 def update_sale(request):
@@ -174,8 +174,15 @@ def update_sale(request):
         product_id = "AM"+"-A"+"-1"+"-"+f'{random.randint(1, 99999):05d}'
         new_product = Product(product_id=product_id, product_name=sale.product_name, product_unity=Unity.objects.all().first(), product_quantity=1, product_cp=1.0, product_sp=1.0)
         new_product.save()
-        sale.product = Product.objects.get(product_id=product_id)
+        new_product = Product.objects.get(product_id=product_id)
+        sale.product = new_product
         sale.save()
+        
+        for s in Sell.objects.exclude(pk=pk).filter(product_name=sale.product_name):
+            s.product_name = None
+            s.product = new_product
+            s.unit_price=int(s.total_price)/float(s.quantity)
+            s.save()
         return redirect("selled-products")
     sale = Sell.objects.get(pk=int(request.GET["pk"]))
     for element in request.GET:
@@ -186,6 +193,11 @@ def update_sale(request):
             elif element == "product":
                 p = Product.objects.get(pk=val)
                 sale.product = p
+                for s in Sell.objects.exclude(pk=val).filter(product_name=sale.product_name):
+                    s.product_name = None
+                    s.product = p
+                    s.unit_price=int(s.total_price)/float(s.quantity)
+                    s.save()
     sale.unit_price=int(sale.total_price)/float(sale.quantity)
     sale.save()
     return JsonResponse({"status": "OK"})
@@ -216,7 +228,7 @@ def print_params(request, target, table):
 
 @require_http_methods(["GET"])
 @login_required(login_url="/account/login")
-def print(request):
+def _print(request):
     target = request.GET["target"]
     images_folder = "/var/www/"
 
