@@ -11,6 +11,9 @@
                 <div style="max-width: 300px;" class="form-group col-12 col-md-4">
                     <input id="typed-name" oninput="toggleImage(event)" name="product_name" id="product_name" class="form-control form-control-sm" placeholder="Le nom du produit">
                 </div>
+                <div style="max-width: 300px;" class="form-group col-12 col-md-4">
+                    <input name="commanded_quantity" type="text" id="commanded_quantity" class="form-control form-control-sm" placeholder="Quantité à commander">
+                </div>
                 <div style="display: none;" id="image-ctn" class="form-group">
                     <input name="product_image" type="file" class="form-control form-control-sm"/>
                 </div>
@@ -48,6 +51,7 @@
             <table id="table-appro" class="table table-bordered table-striped">
                 <thead class="table-dark">
                     <tr>
+                        <th>Quantité commandée</th>
                         <th>Nom du produit</th>
                         <th>Quantité actuelle</th>
                         <th>Image</th>
@@ -58,7 +62,8 @@
                 </thead>
                 <tbody>
                     {% for rav in ravitaillement %}
-                    <tr class="{% if product.product_quantity == 0 %}table-danger{% else %}table-warning{% endif %}">
+                    <tr id={{rav.pk}} class="{% if product.product_quantity == 0 %}table-danger{% else %}table-warning{% endif %}">
+                        <td id="commanded_quantity" class="editable commanded_quantity">{{ rav.commanded_quantity }}</td>
                         {% if rav.product %}
                             <td>{{ rav.product.product_name }}</td>
                         {% else %}
@@ -164,6 +169,9 @@
             </div>
     </div>
     <script>
+        let edit = {pk: null, product: null, commanded_quantity: null};
+        let params = "";
+
         function update_center(e){
             if(e.target.id == "enter"){
                 document.getElementById('table-entrance').style.display = 'block';
@@ -282,5 +290,144 @@
                 document.getElementById('create-form-'+p).submit();
             }
         }
+
+        document.addEventListener('DOMContentLoaded', function() {
+
+            const cells = document.querySelectorAll('td.editable');
+            let lastClickedCell = null;
+            let clickTimeout = null;
+
+            cells.forEach(cell => {
+                // Handle double click
+                cell.addEventListener('dblclick', function(e) {
+                    // Clear the single-click timeout
+                    if (clickTimeout) {
+                        clearTimeout(clickTimeout);
+                        clickTimeout = null;
+                    }
+                    
+                    handleDoubleClick(e.target);
+                });
+            });
+
+            async function save() {
+                await fetch('/update-ravitaillement/'+params.slice(0, params.length - 1), {
+                    method: 'GET'
+                }).catch((e) => console.error("error while saving! ", e));
+            }
+
+            async function handleDoubleClick(cell) {
+                // Clear selections
+                document.querySelectorAll('.selected-cell').forEach(el => {
+                    el.classList.remove('selected-cell');
+                });
+                
+                // Highlight and edit cell
+                cell.classList.add('editing-cell');
+
+                // Create input field for editing
+                const originalContent = cell.textContent;
+                let input = document.createElement('input');
+                let sortedByValue = null;
+
+                if(cell.classList.contains('product')){
+                    await fetch('/products/', {
+                        method: 'GET',
+                    }).then((response) => response.json()
+                        .then((data) => {
+                            input = document.createElement('select');
+                            input.name = "product_name";
+                            sortedByValue = Object.entries(data)
+                                .sort((a, b) => a[1].localeCompare(b[1]));
+                            console.log(sortedByValue);
+                            sortedByValue.forEach(([key, product]) => {
+                                const option = document.createElement('option');
+                                option.innerHTML = product;
+                                option.value = key;
+                                if (originalContent == product) {
+                                option.selected = true;
+                                }
+                                input.appendChild(option);
+                            });
+
+                            // Replace cell content with input
+                            cell.innerHTML = '';
+                            cell.appendChild(input);
+                            input.focus();
+                    })
+                    ).catch((e) => console.log(`Ne peut pas recupérer les produits ${e}`))
+                }else{
+                    input.type = 'text';
+                    input.value = parseInt(originalContent.split(" ").join(""), 10);
+                    input.classList.add(cell.id);
+                    input.style.width = '100%';
+                    input.style.border = 'none';
+                    input.style.padding = '4px';
+
+                    // Replace cell content with input
+                    cell.innerHTML = '';
+                    cell.appendChild(input);
+                    input.focus();
+                }
+                
+                // Handle input completion
+                function finishEdit() {
+                    let newValue = null;
+                    edit.pk = input.parentElement.parentElement.id;
+                    if(input.tagName === 'SELECT'){
+                        newValue = input.options[input.selectedIndex].text;
+                        edit.product = input.value;
+                        edit.quantity = null;
+                        edit.total_price = null;
+                    }else{
+                        edit.product = null;
+                        newValue = input.value.trim();
+                        if(input.classList.contains('commanded_quantity')){
+                            edit.commanded_quantity = newValue;
+                        }
+                        if(input.classList.contains('total_price')){
+                            edit.total_price = newValue;
+                            edit.quantity = null;
+                        }
+                    }
+                    params = "?update=true&";
+                    Object.entries(edit).forEach(([key, value]) => {
+                        params += key+"="+value+"&"
+                    });
+                    if (confirm('Are you sure you want to update this item?')) {
+                        save();
+                        cell.textContent = newValue;
+                    }else{
+                        cell.textContent = originalContent;
+                    }
+                    cell.classList.remove('editing-cell');
+                    
+                    // Remove event listeners
+                    input.removeEventListener('blur', finishEdit);
+                    input.removeEventListener('keydown', handleKeyDown);
+                }
+                
+                function handleKeyDown(e) {
+                    if (e.key === 'Enter') {
+                        finishEdit();
+                    } else if (e.key === 'Escape') {
+                        cell.textContent = originalContent;
+                        cell.classList.remove('editing-cell');
+                    }
+                }
+                
+                input.addEventListener('blur', finishEdit);
+                input.addEventListener('keydown', handleKeyDown);
+            }
+
+            function getCellInfo(cell) {
+                return {
+                    content: cell.textContent.trim(),
+                    row: cell.parentNode.rowIndex,
+                    column: cell.cellIndex,
+                    rowData: Array.from(cell.parentNode.cells).map(td => td.textContent.trim())
+                };
+            }
+        });
     </script>
 {% endblock %}

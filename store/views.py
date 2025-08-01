@@ -330,6 +330,7 @@ def approvioning(request):
         if product_name.strip() in [rav.product_name, rav_pro_name]:
             return render(request, 'approvioning.html', {"ravitaillement": Ravitaillement.objects.all(), "entrances":entrances, "products": Product.objects.all()})
     if app:
+        app.commanded_quantity = request.POST.get("commanded_quantity", 0)
         if not product and product_name:
             image = request.FILES.get('product_image', None)
             if image:
@@ -360,6 +361,14 @@ def add_approvioning(request):
 def update_ravitaillement(request):
     pk = int(request.GET.get("pk", None))
     rav = Ravitaillement.objects.get(pk=pk)
+    if "update" in request.GET:
+        for element in request.GET:
+            val = request.GET.get(element, None) if request.GET.get(element, None) not in ["null", "nul"] else None
+            if val:
+                if element != 'pk' and element != "product":
+                    setattr(rav, element, val)
+        rav.save()
+        return redirect("approvioning")
     if "create" in request.GET:
         product_id = "AM"+"-A"+"-1"+"-"+f'{random.randint(1, 99999):05d}'
         new_product = Product(product_id=product_id, product_name=rav.product_name, product_unity=Unity.objects.all().first(), product_quantity=1, product_cp=1.0, product_sp=1.0, product_image=rav.image)
