@@ -240,22 +240,23 @@ def _print(request):
         commande = []
         for r in rev:
             p_name = r.product_name if not r.product else r.product.product_name
+            p_commanded_quantity = r.commanded_quantity
             p_image = "-"
             if not r.product:
                 if r.image:
                     p_image = r.image.url
             else:
                 p_image = r.product.product_image.url
-            commande.append({"Produit":p_name, "Image":f"{images_folder}{p_image}", "Quantité": "...", "Prix":"..........."})
+            commande.append({"Quantité commandée":p_commanded_quantity, "Produit":p_name, "Image":f"{images_folder}{p_image}", "Quantité": "...", "Prix":"..........."})
 
         # Convert to table format
-        data = [["Produit", "Image", "Quantité", "Prix (FCFA)"]]
+        data = [["Quantité commandée", "Produit", "Image", "Quantité", "Prix (FCFA)"]]
         for item in commande:
             img_cell = reportlab_image(item["Image"], width=25, height=25) if item["Image"] and os.path.exists(item["Image"]) else ""
-            data.append([item["Produit"], img_cell, item["Quantité"], item["Prix"]])
+            data.append([item["Quantité commandée"], item["Produit"], img_cell, item["Quantité"], item["Prix"]])
 
         # Create table and style
-        col_widths = [300, 50, 70, 70]
+        col_widths = [100, 200, 50, 70, 70]
         table = Table(data, col_widths)
         print_params(request, target, table)
         return redirect("approvioning")
