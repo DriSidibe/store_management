@@ -140,23 +140,26 @@ def metrics(request):
 
     return render(request, 'metrics.html', context)
 
-@require_http_methods(["GET"])
 @login_required(login_url="/account/login")
 def sell_product(request):
-    if "view" in request.GET:
+    if request.method == "GET":
         return render(request, 'sell-product.html')
-    quantity = request.GET.get("quantity")
-    price = request.GET.get("price")
-    customer = request.GET.get("customer", None)
+    quantity = request.POST.get("quantity")
+    price = request.POST.get("price")
+    customer = request.POST.get("customer", None)
 
     product = None
-    if "productId" in request.GET:
-        product = Product.objects.get(product_id=request.GET.get("productId"))
+    if "productId" in request.POST:
+        product = Product.objects.POST(product_id=request.POST.get("productId"))
     product_name = ""
-    if "product_name" in request.GET:
-        product_name = request.GET.get("product_name")
+    if "product_name" in request.POST:
+        product_name = request.POST.get("product_name")
         
     sell = Sell(product=product, quantity=quantity, total_price=price, unit_price=int(price)/float(quantity), product_name=product_name, customer_name=customer)
+    image = request.FILES.get('product_image', None)
+    if image:
+        product_image = resize_image(compress_image(convert_to_jpeg(image)))
+        sell.product_image.save(image.name, product_image)
     sell.save()
     messages.success(request, "Produit vendu avec success!")
     return redirect('selled-products')
@@ -172,7 +175,7 @@ def update_sale(request):
         pk = int(request.GET.get("pk", None))
         sale = Sell.objects.get(pk=pk)
         product_id = "AM"+"-A"+"-1"+"-"+f'{random.randint(1, 99999):05d}'
-        new_product = Product(product_id=product_id, product_name=sale.product_name, product_unity=Unity.objects.all().first(), product_quantity=1, product_cp=1.0, product_sp=1.0)
+        new_product = Product(product_id=product_id, product_name=sale.product_name, product_unity=Unity.objects.all().first(), product_quantity=1, product_cp=1.0, product_sp=1.0, product_image=sale.product_image)
         new_product.save()
         new_product = Product.objects.get(product_id=product_id)
         sale.product = new_product

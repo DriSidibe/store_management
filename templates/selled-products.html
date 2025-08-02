@@ -33,6 +33,7 @@
                         <tr>
                             <th>Client</th>
                             <th>Produit</th>
+                            <th>Image</th>
                             <th>Quantité</th>
                             <th>Prix unitaire (FCFA)</th>
                             <th>Prix total (FCFA)</th>
@@ -49,8 +50,19 @@
                                 <td>{{ sale.customer_name }}</td>
                                 {% if sale.product %}
                                     <td class="editable product">{{ sale.product.product_name }}</td>
+                                    <td>
+                                        <div  class="form-group">
+                                            <img style="max-height: 50px;" id="imagePreview" src="{{ sale.product.product_image.url }}" alt="Image" style="width:150px;" />
+                                        </div>
+                                    </td>
+                                    
                                 {% else %}
                                     <td class="editable product">{{ sale.product_name }}</td>
+                                    <td>
+                                        <div  class="form-group">
+                                            <img style="max-height: 50px;" id="imagePreview" src="{% if sale.product_image %}{{ sale.product_image.url }}{% else %} {% static 'images/image.png' %}{% endif %}" alt="Image" style="width:150px;" />
+                                        </div>
+                                    </td>
                                 {% endif %}
                                 <td id="quantity" class="editable">{{ sale.quantity }}</td>
                                 {% if sale.product %}

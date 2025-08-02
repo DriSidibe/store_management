@@ -5,7 +5,7 @@
 {% block content %}
     <div class="content form-wrapper container-fluid">
     <h2>Vendre un produit inexistant</h2>
-    <form action="/sell-product/" method="GET">
+    <form action="/sell-product/" enctype="multipart/form-data" method="POST">
         {% csrf_token %}
         <div class="form-row">
             <div class="form-group col-12 col-md-4">
@@ -20,10 +20,19 @@
             <div class="form-group col-12 col-md-4">
                 <input type="text" name="customer" id="customer" class="form-control form-control-sm" placeholder="Client">
             </div>
+            <div id="image-ctn" class="form-group">
+                <input name="product_image" type="file" class="form-control form-control-sm"/>
+            </div>
             <div class="form-group col-12 col-md-4">
                 <input type="submit" value="valider" class="btn btn-success btn-block">
             </div>
+            <img id="imagePreview" src="#" alt="Aperçu de l'image" style="display:none; width:150px;" />
         </div>
     </form>
 </div>
+<script>
+    document.addEventListener('DOMContentLoaded', function(){
+        previewImage();
+    });
+</script>
 {% endblock %}

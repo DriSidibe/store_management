@@ -1,5 +1,18 @@
 from django.db import models
 
+class Camera(models.Model):
+    name = models.CharField(max_length=100)
+    description = models.TextField(blank=True, null=True)
+    ip_address = models.CharField(max_length=39)
+    resolution = models.CharField(max_length=10)
+    is_active = models.BooleanField()
+    quality = models.IntegerField()
+    brightness = models.IntegerField()
+    vflip = models.BooleanField()
+    hflip = models.BooleanField()
+    contrast = models.IntegerField()
+
+
 # Create your models here.
 class Unity(models.Model):
     name = models.CharField(max_length=255, unique=True)
@@ -62,6 +75,7 @@ class Sell(models.Model):
     quantity = models.IntegerField(default=0, null=True, blank=True)
     sell_date = models.DateTimeField(auto_now=True)
     customer_name = models.CharField(max_length=255, null=True)
+    product_image = models.ImageField(upload_to ='products_images/', blank=True, null=True, default=None) 
 
     def productInfo(self):
         info = {'name':self.product.product_name, 'price': self.product.product_sp}
