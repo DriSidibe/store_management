@@ -46,7 +46,7 @@
                         {% for sale in sales %}
                             <tr id={{sale.pk}}>
                                 <td>{{ sale.customer_name }}</td>
-                                {% if sale.product %}
+                                {% if sale.product and sale.product.product_image %}
                                     <td class="editable product">{{ sale.product.product_name }}</td>
                                     <td>
                                         <div  class="form-group">
