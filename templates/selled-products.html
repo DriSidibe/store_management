@@ -46,16 +46,18 @@
                         {% for sale in sales %}
                             <tr id={{sale.pk}}>
                                 <td>{{ sale.customer_name }}</td>
-                                {% if sale.product and sale.product.product_image %}
+                                {% if sale.product %}
                                     <td class="editable product">{{ sale.product.product_name }}</td>
+                                {% else %}
+                                    <td class="editable product">{{ sale.product_name }}</td>
+                                {% endif %}
+                                {% if sale.product and sale.product.product_image %}
                                     <td>
                                         <div  class="form-group">
                                             <img style="max-height: 50px;" id="imagePreview" src="{{ sale.product.product_image.url }}" alt="Image" style="width:150px;" />
                                         </div>
                                     </td>
-                                    
                                 {% else %}
-                                    <td class="editable product">{{ sale.product_name }}</td>
                                     <td>
                                         <div  class="form-group">
                                             <img style="max-height: 50px;" id="imagePreview" src="{% if sale.product_image %}{{ sale.product_image.url }}{% else %} {% static 'images/image.png' %}{% endif %}" alt="Image" style="width:150px;" />

@@ -1,8 +1,5 @@
 *venv*
 *.env
-*.jpeg
-*.jpg
-*.png
 env
 recordings*
 thumbnails

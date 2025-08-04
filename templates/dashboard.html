@@ -133,10 +133,10 @@
                             <p>{{product.product_quantity}}</p>
                         </div>
                             <div style="width: 100%; display: flex; gap: 20px; flex-wrap: wrap; justfy-content: enter;">
-                                <form onsubmit="sell(this)">
+                                <form>
                                         {% csrf_token %}
                                         <input id="selledProduct_id" style="display: none;" value="{{product.product_id}}"/>
-                                        <input type="submit" class="btn btn-success" value="vendre"/>
+                                        <input onclick="sell(this)" id="{{product.product_id}}" type="" class="btn btn-success" value="vendre"/>
                                     </form>
                                 {% if request.user.is_staff %}
                                     <form action="/search-product/" method="GET">
@@ -202,7 +202,7 @@
         // Create product id input
         const productId = document.createElement('input');
         productId.name = 'productId';
-        productId.value = v.value;
+        productId.value = v;
         productId.style.display = "none";
         productId.required = true;
 
@@ -254,8 +254,12 @@
     }
 
     function sell(e){
-        e.preventDefault()
-        openModal(e.target.children[1]);
+        try{
+            e.preventDefault();
+            openModal(e.target.children[1].value);
+        }catch{
+            openModal(e.id);
+        }
     }
 
     function hideSuggestions() {

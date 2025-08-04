@@ -142,21 +142,27 @@ def metrics(request):
 
 @login_required(login_url="/account/login")
 def sell_product(request):
-    if request.method == "GET":
+    if request.method == "GET" and "quantity" not in request.GET:
         return render(request, 'sell-product.html')
-    quantity = request.POST.get("quantity")
-    price = request.POST.get("price")
-    customer = request.POST.get("customer", None)
+    data = None
+    image = None
+    if request.method == "GET":
+        data = request.GET
+    else:
+        data = request.POST
+        image = request.FILES.get('product_image', None)
+    quantity = data.get("quantity")
+    price = data.get("price")
+    customer = data.get("customer", None)
 
     product = None
-    if "productId" in request.POST:
-        product = Product.objects.POST(product_id=request.POST.get("productId"))
+    if "productId" in data:
+        product = Product.objects.get(product_id=data.get("productId"))
     product_name = ""
-    if "product_name" in request.POST:
-        product_name = request.POST.get("product_name")
+    if "product_name" in data:
+        product_name = data.get("product_name")
         
     sell = Sell(product=product, quantity=quantity, total_price=price, unit_price=int(price)/float(quantity), product_name=product_name, customer_name=customer)
-    image = request.FILES.get('product_image', None)
     if image:
         product_image = resize_image(compress_image(convert_to_jpeg(image)))
         sell.product_image.save(image.name, product_image)
