@@ -15,7 +15,7 @@
                     <input name="commanded_quantity" type="text" id="commanded_quantity" class="form-control form-control-sm" placeholder="Quantité à commander">
                 </div>
                 <div style="display: none;" id="image-ctn" class="form-group">
-                    <input name="product_image" type="file" class="form-control form-control-sm"/>
+                    <input name="product_image" type="file" accept="image/png, image/jpeg, image/jpg" class="form-control form-control-sm"/>
                 </div>
                 <select style="max-width: 300px;" name="pk" class="form-control form-control-sm">
                     <option value="-" selected>
@@ -221,6 +221,7 @@
             // Create quantity input
             const approvioningImageInput = document.createElement('input');
             approvioningImageInput.type = 'file';
+            approvioningImageInput.accept = 'image/*';
             approvioningImageInput.classList.add("form-control");
             approvioningImageInput.classList.add("form-control-sm");
             approvioningImageInput.name = 'image';
