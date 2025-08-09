@@ -7,7 +7,7 @@
     <h2>Vendre un produit inexistant</h2>
     <form action="/sell-product/" enctype="multipart/form-data" method="POST">
         {% csrf_token %}
-        <div class="form-row">
+        <div style="gap: 10px;" class="form-row">
             <div class="form-group col-12 col-md-4">
                 <input name="product_name" id="product_name" class="form-control form-control-sm" placeholder="Le nom du produit" required>
             </div>
@@ -23,6 +23,11 @@
             <div id="image-ctn" class="form-group">
                 <input name="product_image" type="file" accept="image/png, image/jpeg, image/jpg" class="form-control form-control-sm"/>
             </div>
+            {% if request.user.is_superuser %}
+                <div id="image-ctn" class="form-group">
+                    <input name="date" type="date" class="form-control form-control-sm"/>
+                </div>
+            {% endif %}
             <div class="form-group col-12 col-md-4">
                 <input type="submit" value="valider" class="btn btn-success btn-block">
             </div>

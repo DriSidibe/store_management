@@ -5,6 +5,9 @@
 {% block content %}
     <div class="content form-wrapper container-fluid">
     <h2>Produits en Stock</h2>
+    {% if request.user.is_superuser %}
+        <h1 style="display: none;" id="isSuperUser">true</h1>
+    {% endif %}
     <form action="/" method="POST">
         {% csrf_token %}
         <div class="form-row">
@@ -222,6 +225,15 @@
         customerInput.id = 'customer';
         customerInput.placeholder = 'Client';
 
+        // Create quantity input
+        const sellDateInput = document.createElement('input');
+        sellDateInput.type = 'date';
+        sellDateInput.classList.add("form-control");
+        sellDateInput.classList.add("form-control-sm");
+        sellDateInput.name = 'date';
+        sellDateInput.required = false;
+
+
         // Create total price input
         const valiadte = document.createElement('input');
         valiadte.classList.add("btn-success");
@@ -237,6 +249,12 @@
         cancel.addEventListener('click', () => {
             document.body.removeChild(container);
         });
+
+        const isSuperUser = document.getElementById("isSuperUser").textContent;
+
+        if(isSuperUser == "true"){
+            modal.appendChild(sellDateInput);
+        }
 
         // Append inputs to modal
         modal.appendChild(productId);

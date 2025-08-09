@@ -162,7 +162,10 @@ def sell_product(request):
     if "product_name" in data:
         product_name = data.get("product_name")
         
-    sell = Sell(product=product, quantity=quantity, total_price=price, unit_price=int(price)/float(quantity), product_name=product_name, customer_name=customer)
+    date = data.get("date", None)
+    if not date:
+        date = datetime.date.today()
+    sell = Sell(sell_date=date, product=product, quantity=quantity, total_price=price, unit_price=int(price)/float(quantity), product_name=product_name, customer_name=customer)
     if image:
         product_image = resize_image(compress_image(convert_to_jpeg(image)))
         sell.product_image.save(image.name, product_image)
