@@ -1,317 +1,427 @@
 {% extends 'base.html' %}
 {% load static %}
-{% load custom_filters %}
+{% load custom_filters %} 
 
 {% block content %}
-    <div class="content form-wrapper container-fluid">
-    <h2>Produits en Stock</h2>
-    {% if request.user.is_superuser %}
-        <h1 style="display: none;" id="isSuperUser">true</h1>
-    {% endif %}
-    <form action="/" method="POST">
-        {% csrf_token %}
-        <div class="form-row">
-            <input style="display: none;" name="suggestion" value="_">
-            <div class="form-group col-12 col-md-4">
-                <input type="search" name="product_id" id="product_id" class="form-control form-control-sm" placeholder="Entrer l'ID du produit">
-            </div>
-            <div class="form-group col-12 col-md-4">
-                <input onfocus="showSuggestions(this.value)" oninput="showSuggestions(this.value)" type="search" name="prod_name" id="product_name" class="form-control form-control-sm" placeholder="Entrer le nom du produit">
-                <div id="suggestion-box" class="suggestion-box">
-                    <ul id="suggestions-list">
-                    </ul>
-                </div>
-            </div>
-            <div class="form-group col-12 col-md-4">
-                <input type="submit" value="Rechercher" class="btn btn-primary btn-block">
-            </div>
-            <div style="width: 100%; display: flex; justify-content: space-between; padding: 20px;">
-                    <div onclick="window.location.href='/print/?target=produits'" style="display: inline;">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="25" height="25" fill="green" class="bi bi-printer" viewBox="0 0 16 16">
-                            <path d="M2.5 8a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1"/>
-                            <path d="M5 1a2 2 0 0 0-2 2v2H2a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h1v1a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-1h1a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-1V3a2 2 0 0 0-2-2zM4 3a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2H4zm1 5a2 2 0 0 0-2 2v1H2a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1v-1a2 2 0 0 0-2-2zm7 2v3a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1"/>
-                        </svg>
-                    </div>
-                </div>
+<div class="content form-wrapper container-fluid">
+  <h2>Produits en Stock</h2>
+  {% if request.user.is_superuser %}
+  <h1 style="display: none" id="isSuperUser">true</h1>
+  {% else %}
+  <h1 style="display: none" id="isSuperUser">false</h1>
+  {% endif %}
+  <form action="/" method="POST">
+    {% csrf_token %}
+    <div class="form-row">
+      <input style="display: none" name="suggestion" value="_" />
+      <div class="form-group col-12 col-md-4">
+        <input
+          type="search"
+          name="product_id"
+          id="product_id"
+          class="form-control form-control-sm"
+          placeholder="Entrer l'ID du produit"
+        />
+      </div>
+      <div class="form-group col-12 col-md-4">
+        <input
+          onfocus="showSuggestions(this.value)"
+          oninput="showSuggestions(this.value)"
+          type="search"
+          name="prod_name"
+          id="product_name"
+          class="form-control form-control-sm"
+          placeholder="Entrer le nom du produit"
+        />
+        <div id="suggestion-box" class="suggestion-box">
+          <ul id="suggestions-list"></ul>
         </div>
-    </form>
-    <div class="table-responsive">
-        <table id="dash-table" class="table"> 
-            <thead class="thead-dark"> 
-                <tr> 
-                    <th scope="col">ID</th> 
-                    <th scope="col">Etagère</th>
-                    <th scope="col">Casier</th>
-                    <th scope="col">Nom</th> 
-                    <th scope="col">Unité</th> 
-                    <th scope="col">Quantité</th> 
-                    <th scope="col">Prix achat</th>
-                    <th scope="col">Prix vente</th> 
-                    <th scope="col">Image</th> 
-                    {% if request.user.is_staff %}
-                    <th scope="col">Actions</th> 
-                    {% endif %}
-                </tr> 
-            </thead> 
-            <tbody> 
-                {% for product in products %} 
-                <tr> 
-                    <th scope="row">{{product.product_id}}</th> 
-                    {% with parts=product.product_id|split:"-" %}
-                        <td>{{ parts.1 }}</td>
-                        <td>{{ parts.2 }}</td>
-                    {% endwith %}
-                    <td>{{product.product_name}}</td> 
-                    <td>{{product.product_unity}}</td> 
-                    <td>{{product.product_quantity}}</td> 
-                    <td>{{product.product_cp|floatformat:2}}</td> 
-                    <td>{{product.product_sp|floatformat:2}}</td> 
-                    <td>
-                        {% if product.product_image %}
-                            <img style="width: 50px; height: 50px;" src="{{product.product_image.url}}"/>
-                        {% else %}
-                            <img style="width: 50px; height: 50px;" src="{% static 'images/image.png' %}"/>
-                        {% endif %}
-                    </td> 
-                    <td>
-                        <div>
-                            <form onsubmit="sell(event)">
-                                    {% csrf_token %}
-                                    <input id="selledProduct_id" style="display: none;" value="{{product.product_id}}"/>
-                                    <input type="submit" class="btn btn-success" value="vendre"/>
-                                </form>
-                            {% if request.user.is_staff %}
-                                <form action="/search-product/" method="GET">
-                                    {% csrf_token %}
-                                    <input name="product_id" style="display: none;" value="{{product.product_id}}"/>
-                                    <input type="submit" class="btn btn-warning" value="modifier"/>
-                                </form>
-                                {% if request.user.is_superuser %}
-                                    <form action="/delete-product/" method="GET">
-                                        {% csrf_token %}
-                                        <input name="product_id" style="display: none;" value="{{product.product_id}}"/>
-                                        <input type="submit" class="btn btn-danger" value="supprimer"/>
-                                    </form>
-                                {% endif %}
-                            {% endif %}
-                        </div>
-                    </td> 
-                </tr> 
-                {% endfor %} 
-            </tbody> 
-        </table>
-        <div id="mobile">
-            {% for product in products %}
-                <div class="card">
-                    <div class="card-image">
-                        {% if product.product_image %}
-                            <img src="{{product.product_image.url}}" alt="{{product.product_name}}">
-                        {% else %}
-                            <img src="{% static 'images/image.png' %}"/>
-                        {% endif %}
-                    </div>
-                    <div class="card-details">
-                        <div class="detail-item">
-                            <h5>Code:</h5>
-                            <p>{{product.product_id}}</p>
-                        </div>
-                        <div class="detail-item">
-                            <h5>Etagère:</h5>
-                            <p>{{product.product_etag}}</p>
-                        </div>
-                        <div class="detail-item">
-                            <h5>Nom:</h5>
-                            <p>{{product.product_name}}</p>
-                        </div>
-                        <div class="detail-item">
-                            <h5>Prix achat:</h5>
-                            <p>{{product.product_cp|floatformat:2}}</p>
-                        </div>
-                        <div class="detail-item">
-                            <h5>Prix vente:</h5>
-                            <p>{{product.product_sp|floatformat:2}}</p>
-                        </div>
-                        <div class="detail-item">
-                            <h5>Qte rest:</h5>
-                            <p>{{product.product_quantity}}</p>
-                        </div>
-                            <div style="width: 100%; display: flex; gap: 20px; flex-wrap: wrap; justfy-content: enter;">
-                                <form>
-                                        {% csrf_token %}
-                                        <input id="selledProduct_id" style="display: none;" value="{{product.product_id}}"/>
-                                        <input onclick="sell(this)" id="{{product.product_id}}" type="" class="btn btn-success" value="vendre"/>
-                                    </form>
-                                {% if request.user.is_staff %}
-                                    <form action="/search-product/" method="GET">
-                                        {% csrf_token %}
-                                        <input name="product_id" style="display: none;" value="{{product.product_id}}"/>
-                                        <input type="submit" class="btn btn-warning" value="modifier"/>
-                                    </form>
-                                    {% if request.user.is_superuser %}
-                                        <form action="/delete-product/" method="GET">
-                                            {% csrf_token %}
-                                            <input name="product_id" style="display: none;" value="{{product.product_id}}"/>
-                                            <input type="submit" class="btn btn-danger" value="supprimer"/>
-                                        </form>
-                                    {% endif %}
-                                {% endif %}
-                            </div> 
-                    </div>
-                </div>
-            {% endfor %}
+      </div>
+      <div class="form-group col-12 col-md-4">
+        <input
+          type="submit"
+          value="Rechercher"
+          class="btn btn-primary btn-block"
+        />
+      </div>
+      <div
+        style="
+          width: 100%;
+          display: flex;
+          justify-content: space-between;
+          padding: 20px;
+        "
+      >
+        <div
+          onclick="window.location.href='/print/?target=produits'"
+          style="display: inline"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="25"
+            height="25"
+            fill="green"
+            class="bi bi-printer"
+            viewBox="0 0 16 16"
+          >
+            <path d="M2.5 8a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1" />
+            <path
+              d="M5 1a2 2 0 0 0-2 2v2H2a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h1v1a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-1h1a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-1V3a2 2 0 0 0-2-2zM4 3a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2H4zm1 5a2 2 0 0 0-2 2v1H2a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1v-1a2 2 0 0 0-2-2zm7 2v3a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1"
+            />
+          </svg>
         </div>
+      </div>
     </div>
-    <div class="pagination" style="width: 100%;">
-        <span style="display: flex; gap: 20px; width: 100vw; flex-wrap: wrap;" class="step-links">
-          {% if products.has_previous %}
-            <form method="post">{% csrf_token %}<input style="display: none;" name="page_number" value="1"/><button type="submit">&laquo; premier</button></form>
-            <form method="post">{% csrf_token %}<input style="display: none;" name="page_number" value="{{ products.previous_page_number }}"/><button type="submit">precedent</button></form>
+  </form>
+  <div class="table-responsive">
+    <table id="dash-table" class="table">
+      <thead class="thead-dark">
+        <tr>
+          <th scope="col">ID</th>
+          <th scope="col">Etagère</th>
+          <th scope="col">Casier</th>
+          <th scope="col">Nom</th>
+          <th scope="col">Unité</th>
+          <th scope="col">Quantité</th>
+          <th scope="col">Prix achat</th>
+          <th scope="col">Prix vente</th>
+          <th scope="col">Image</th>
+          {% if request.user.is_staff %}
+          <th scope="col">Actions</th>
           {% endif %}
-      
-          <span class="current">
-            Page {{ products.number }} de {{ products.paginator.num_pages }}.
-          </span>
-      
-          {% if products.has_next %}
-            <form method="post">{% csrf_token %}<input style="display: none;" name="page_number" value="{{ products.next_page_number }}"/><button type="submit">suivant</button></form>
-            <form method="post">{% csrf_token %}<input style="display: none;" name="page_number" value="{{ products.paginator.num_pages }}"/><button type="submit">dernier</button></form>
+        </tr>
+      </thead>
+      <tbody>
+        {% for product in products %}
+        <tr>
+          <th scope="row">{{product.product_id}}</th>
+          {% with parts=product.product_id|split:"-" %}
+          <td>{{ parts.1 }}</td>
+          <td>{{ parts.2 }}</td>
+          {% endwith %}
+          <td>{{product.product_name}}</td>
+          <td>{{product.product_unity}}</td>
+          <td>{{product.product_quantity}}</td>
+          <td>{{product.product_cp|floatformat:2}}</td>
+          <td>{{product.product_sp|floatformat:2}}</td>
+          <td>
+            {% if product.product_image %}
+            <img
+              style="width: 50px; height: 50px"
+              src="{{product.product_image.url}}"
+            />
+            {% else %}
+            <img
+              style="width: 50px; height: 50px"
+              src="{% static 'images/image.png' %}"
+            />
+            {% endif %}
+          </td>
+          <td>
+            <div>
+              <form onsubmit="sell(event)">
+                {% csrf_token %}
+                <input
+                  id="selledProduct_id"
+                  style="display: none"
+                  value="{{product.product_id}}"
+                />
+                <input type="submit" class="btn btn-success" value="vendre" />
+              </form>
+              {% if request.user.is_staff %}
+              <form action="/search-product/" method="GET">
+                {% csrf_token %}
+                <input
+                  name="product_id"
+                  style="display: none"
+                  value="{{product.product_id}}"
+                />
+                <input type="submit" class="btn btn-warning" value="modifier" />
+              </form>
+              {% if request.user.is_superuser %}
+              <form action="/delete-product/" method="GET">
+                {% csrf_token %}
+                <input
+                  name="product_id"
+                  style="display: none"
+                  value="{{product.product_id}}"
+                />
+                <input type="submit" class="btn btn-danger" value="supprimer" />
+              </form>
+              {% endif %} {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div id="mobile">
+      {% for product in products %}
+      <div class="card">
+        <div class="card-image">
+          {% if product.product_image %}
+          <img
+            src="{{product.product_image.url}}"
+            alt="{{product.product_name}}"
+          />
+          {% else %}
+          <img src="{% static 'images/image.png' %}" />
           {% endif %}
-        </span>
+        </div>
+        <div class="card-details">
+          <div class="detail-item">
+            <h5>Code:</h5>
+            <p>{{product.product_id}}</p>
+          </div>
+          <div class="detail-item">
+            <h5>Etagère:</h5>
+            <p>{{product.product_etag}}</p>
+          </div>
+          <div class="detail-item">
+            <h5>Nom:</h5>
+            <p>{{product.product_name}}</p>
+          </div>
+          <div class="detail-item">
+            <h5>Prix achat:</h5>
+            <p>{{product.product_cp|floatformat:2}}</p>
+          </div>
+          <div class="detail-item">
+            <h5>Prix vente:</h5>
+            <p>{{product.product_sp|floatformat:2}}</p>
+          </div>
+          <div class="detail-item">
+            <h5>Qte rest:</h5>
+            <p>{{product.product_quantity}}</p>
+          </div>
+          <div
+            style="
+              width: 100%;
+              display: flex;
+              gap: 20px;
+              flex-wrap: wrap;
+              justfy-content: enter;
+            "
+          >
+            <form>
+              {% csrf_token %}
+              <input
+                id="selledProduct_id"
+                style="display: none"
+                value="{{product.product_id}}"
+              />
+              <input
+                onclick="sell(this)"
+                id="{{product.product_id}}"
+                type=""
+                class="btn btn-success"
+                value="vendre"
+              />
+            </form>
+            {% if request.user.is_staff %}
+            <form action="/search-product/" method="GET">
+              {% csrf_token %}
+              <input
+                name="product_id"
+                style="display: none"
+                value="{{product.product_id}}"
+              />
+              <input type="submit" class="btn btn-warning" value="modifier" />
+            </form>
+            {% if request.user.is_superuser %}
+            <form action="/delete-product/" method="GET">
+              {% csrf_token %}
+              <input
+                name="product_id"
+                style="display: none"
+                value="{{product.product_id}}"
+              />
+              <input type="submit" class="btn btn-danger" value="supprimer" />
+            </form>
+            {% endif %} {% endif %}
+          </div>
+        </div>
+      </div>
+      {% endfor %}
     </div>
+  </div>
+  <div class="pagination" style="width: 100%">
+    <span
+      style="display: flex; gap: 20px; width: 100vw; flex-wrap: wrap"
+      class="step-links"
+    >
+      {% if products.has_previous %}
+      <form method="post">
+        {% csrf_token %}<input
+          style="display: none"
+          name="page_number"
+          value="1"
+        /><button type="submit">&laquo; premier</button>
+      </form>
+      <form method="post">
+        {% csrf_token %}<input
+          style="display: none"
+          name="page_number"
+          value="{{ products.previous_page_number }}"
+        /><button type="submit">precedent</button>
+      </form>
+      {% endif %}
+
+      <span class="current">
+        Page {{ products.number }} de {{ products.paginator.num_pages }}.
+      </span>
+
+      {% if products.has_next %}
+      <form method="post">
+        {% csrf_token %}<input
+          style="display: none"
+          name="page_number"
+          value="{{ products.next_page_number }}"
+        /><button type="submit">suivant</button>
+      </form>
+      <form method="post">
+        {% csrf_token %}<input
+          style="display: none"
+          name="page_number"
+          value="{{ products.paginator.num_pages }}"
+        /><button type="submit">dernier</button>
+      </form>
+      {% endif %}
+    </span>
+  </div>
 </div>
 
 <script>
-    function openModal(v) {
+  function openModal(v) {
+    // Create outer container
+    const container = document.createElement("div");
+    container.id = "sell-container";
 
-        // Create outer container
-        const container = document.createElement('div');
-        container.id = 'sell-container';
+    // Create modal
+    const modal = document.createElement("form");
+    modal.method = "GET";
+    modal.action = "/sell-product/";
+    modal.id = "sell-modal";
 
-        // Create modal
-        const modal = document.createElement('form');
-        modal.method = 'GET';
-        modal.action = '/sell-product/'
-        modal.id = 'sell-modal';
+    // Create quantity input
+    const quantityInput = document.createElement("input");
+    quantityInput.type = "number";
+    quantityInput.id = "quantity";
+    quantityInput.name = "quantity";
+    quantityInput.min = "1";
+    quantityInput.placeholder = "Quantité";
+    quantityInput.required = true;
 
-        // Create quantity input
-        const quantityInput = document.createElement('input');
-        quantityInput.type = 'number';
-        quantityInput.id = 'quantity';
-        quantityInput.name = 'quantity';
-        quantityInput.min = "1";
-        quantityInput.placeholder = 'Quantité';
-        quantityInput.required = true;
+    // Create product id input
+    const productId = document.createElement("input");
+    productId.name = "productId";
+    productId.value = v;
+    productId.style.display = "none";
+    productId.required = true;
 
-        // Create product id input
-        const productId = document.createElement('input');
-        productId.name = 'productId';
-        productId.value = v;
-        productId.style.display = "none";
-        productId.required = true;
+    // Create total price input
+    const priceInput = document.createElement("input");
+    priceInput.type = "number";
+    priceInput.name = "price";
+    priceInput.min = "1";
+    priceInput.id = "total-price";
+    priceInput.placeholder = "Total";
+    priceInput.required = true;
 
-        // Create total price input
-        const priceInput = document.createElement('input');
-        priceInput.type = 'number';
-        priceInput.name = 'price';
-        priceInput.min = "1";
-        priceInput.id = 'total-price';
-        priceInput.placeholder = 'Total';
-        priceInput.required = true;
+    // Create total price input
+    const customerInput = document.createElement("input");
+    customerInput.type = "text";
+    customerInput.name = "customer";
+    customerInput.id = "customer";
+    customerInput.placeholder = "Client";
 
-        // Create total price input
-        const customerInput = document.createElement('input');
-        customerInput.type = 'text';
-        customerInput.name = 'customer';
-        customerInput.id = 'customer';
-        customerInput.placeholder = 'Client';
+    // Create quantity input
+    const sellDateInput = document.createElement("input");
+    sellDateInput.type = "date";
+    sellDateInput.classList.add("form-control");
+    sellDateInput.classList.add("form-control-sm");
+    sellDateInput.name = "date";
+    sellDateInput.required = false;
 
-        // Create quantity input
-        const sellDateInput = document.createElement('input');
-        sellDateInput.type = 'date';
-        sellDateInput.classList.add("form-control");
-        sellDateInput.classList.add("form-control-sm");
-        sellDateInput.name = 'date';
-        sellDateInput.required = false;
+    // Create total price input
+    const valiadte = document.createElement("input");
+    valiadte.classList.add("btn-success");
+    valiadte.type = "submit";
+    valiadte.value = "Enregistrer";
 
+    // Create total price input
+    const cancel = document.createElement("input");
+    cancel.classList.add("btn-danger");
+    cancel.type = "button";
+    cancel.value = "Annuler";
 
-        // Create total price input
-        const valiadte = document.createElement('input');
-        valiadte.classList.add("btn-success");
-        valiadte.type = 'submit';
-        valiadte.value = 'Enregistrer';
+    cancel.addEventListener("click", () => {
+      document.body.removeChild(container);
+    });
 
-        // Create total price input
-        const cancel = document.createElement('input');
-        cancel.classList.add("btn-danger");
-        cancel.type = 'button';
-        cancel.value = 'Annuler';
+    const isSuperUser = document.getElementById("isSuperUser").textContent;
 
-        cancel.addEventListener('click', () => {
-            document.body.removeChild(container);
-        });
-
-        const isSuperUser = document.getElementById("isSuperUser").textContent;
-
-        if(isSuperUser == "true"){
-            modal.appendChild(sellDateInput);
-        }
-
-        // Append inputs to modal
-        modal.appendChild(productId);
-        modal.appendChild(quantityInput);
-        modal.appendChild(priceInput);
-        modal.appendChild(customerInput);
-        modal.appendChild(valiadte);
-        modal.appendChild(cancel);
-
-        // Append modal to container
-        container.appendChild(modal);
-
-        // Append container to body
-        document.body.appendChild(container);
+    if (isSuperUser == "true") {
+      modal.appendChild(sellDateInput);
     }
 
-    function sell(e){
-        try{
-            e.preventDefault();
-            openModal(e.target.children[1].value);
-        }catch{
-            openModal(e.id);
-        }
-    }
+    // Append inputs to modal
+    modal.appendChild(productId);
+    modal.appendChild(quantityInput);
+    modal.appendChild(priceInput);
+    modal.appendChild(customerInput);
+    modal.appendChild(valiadte);
+    modal.appendChild(cancel);
 
-    function hideSuggestions() {
-        const suggestions = document.getElementById('suggestions-list');
-        suggestions.innerHTML = '';
-    }
+    // Append modal to container
+    container.appendChild(modal);
 
-    function showSuggestions(value) {
-        const suggestions = document.getElementById('suggestions-list');
-        suggestions.innerHTML = ''; // Clear previous suggestions
-        if (value.length > 0) {
-            // Simulate fetching suggestions (replace with actual AJAX call)
-            const sampleSuggestions = [];
-            fetch('/', {
-                method: 'POST',
-                body: new URLSearchParams({
-                    'prod_name': value,
-                    'suggestion': true
-                }),
-            }).then(response => response.json())
-                .then(data => {
-                    sampleSuggestions.push(...data);
-                    sampleSuggestions.forEach(suggestion => {
-                        const li = document.createElement('li');
-                        li.textContent = suggestion.product_name;
-                        li.addEventListener('click', function() {
-                            document.getElementById('product_name').value = suggestion.product_name;
-                            document.forms[0].submit();
-                    });
-                    suggestions.appendChild(li);
-                });
-                })
-                .catch(error => console.error('Error fetching suggestions:', error));
-        }
+    // Append container to body
+    document.body.appendChild(container);
+  }
+
+  function sell(e) {
+    try {
+      e.preventDefault();
+      openModal(e.target.children[1].value);
+    } catch {
+      openModal(e.id);
     }
+  }
+
+  function hideSuggestions() {
+    const suggestions = document.getElementById("suggestions-list");
+    suggestions.innerHTML = "";
+  }
+
+  function showSuggestions(value) {
+    const suggestions = document.getElementById("suggestions-list");
+    suggestions.innerHTML = ""; // Clear previous suggestions
+    if (value.length > 0) {
+      // Simulate fetching suggestions (replace with actual AJAX call)
+      const sampleSuggestions = [];
+      fetch("/", {
+        method: "POST",
+        body: new URLSearchParams({
+          prod_name: value,
+          suggestion: true,
+        }),
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          sampleSuggestions.push(...data);
+          sampleSuggestions.forEach((suggestion) => {
+            const li = document.createElement("li");
+            li.textContent = suggestion.product_name;
+            li.addEventListener("click", function () {
+              document.getElementById("product_name").value =
+                suggestion.product_name;
+              document.forms[0].submit();
+            });
+            suggestions.appendChild(li);
+          });
+        })
+        .catch((error) => console.error("Error fetching suggestions:", error));
+    }
+  }
 </script>
 {% endblock %}
