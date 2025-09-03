@@ -116,7 +116,7 @@
     </div>
 
     <script>
-        let edit = {pk: null, product: null, quantity: null, total_price: null};
+        let edit = {pk: null, product_name: null, product: null, quantity: null, total_price: null};
         let params = "";
 
         function confirmDelete(p) {
@@ -168,6 +168,19 @@
                 // Create input field for editing
                 const originalContent = cell.textContent;
                 let input = document.createElement('input');
+                let inputEditable = document.createElement('input');
+                let toggleEdit = document.createElement('input');
+                let toggleEditLabel = document.createElement('label');
+                let tdContent = null;
+                inputEditable.type = 'text';
+                inputEditable.value = originalContent;
+                toggleEdit.id = 'editToggle';
+                toggleEditLabel.textContent = 'Edit Name';
+                toggleEditLabel.for = toggleEdit.id;
+                toggleEdit.type = 'checkbox';
+                toggleEdit.name = 'edit-toggle';
+                toggleEdit.addEventListener('change', toggleEditName);
+                let selected = 0;
                 let sortedByValue = null;
 
                 if(cell.classList.contains('product')){
@@ -179,13 +192,12 @@
                             input.name = "product_name";
                             sortedByValue = Object.entries(data)
                                 .sort((a, b) => a[1].localeCompare(b[1]));
-                            console.log(sortedByValue);
                             sortedByValue.forEach(([key, product]) => {
                                 const option = document.createElement('option');
                                 option.innerHTML = product;
                                 option.value = key;
                                 if (originalContent == product) {
-                                option.selected = true;
+                                  option.selected = true;
                                 }
                                 input.appendChild(option);
                             });
@@ -193,10 +205,15 @@
                             // Replace cell content with input
                             cell.innerHTML = '';
                             cell.appendChild(input);
+                            cell.appendChild(toggleEditLabel);
+                            cell.appendChild(toggleEdit);
                             input.focus();
+
+                            document.addEventListener("click", handleBlur);
                     })
                     ).catch((e) => console.log(`Ne peut pas recupérer les produits ${e}`))
                 }else{
+                    selected = 0;
                     input.type = 'number';
                     input.value = parseInt(originalContent.split(" ").join(""), 10);
                     input.classList.add(cell.id);
@@ -209,28 +226,64 @@
                     cell.innerHTML = '';
                     cell.appendChild(input);
                     input.focus();
+
+                    input.addEventListener('blur', finishEdit);
+                }
+
+                function handleBlur(event){
+                  if (!cell.contains(event.target)) {
+                    finishEdit();
+                  }
+                }
+
+                function toggleEditName(e){
+                    const isChecked = e.target.checked;
+                    if (isChecked) {
+                        cell.firstChild.replaceWith(inputEditable);
+                        selected = 2
+                        inputEditable.focus();
+                    } else {
+                        cell.firstChild.replaceWith(input);
+                        selected = 1;
+                        input.focus();
+                    }
                 }
                 
                 // Handle input completion
                 function finishEdit() {
                     let newValue = null;
+                    if(selected != 0){
+                        input = inputEditable;
+                    }
                     edit.pk = input.parentElement.parentElement.id;
                     if(input.tagName === 'SELECT'){
                         newValue = input.options[input.selectedIndex].text;
                         edit.product = input.value;
                         edit.quantity = null;
                         edit.total_price = null;
+                        edit.product_name = null;
                     }else{
-                        edit.product = null;
-                        newValue = input.value.trim();
-                        if(input.classList.contains('quantity')){
-                            edit.quantity = newValue;
-                            edit.total_price = null;
-                        }
-                        if(input.classList.contains('total_price')){
-                            edit.total_price = newValue;
+                        if(selected != 0){
+                            edit.product_name = inputEditable.value;
+                            edit.product = null;
                             edit.quantity = null;
+                            edit.total_price = null;
+                            newValue = input.value.trim();
                         }
+                        else{
+                            edit.product = null;
+                            product_name = null;
+                            newValue = input.value.trim();
+                            if(input.classList.contains('quantity')){
+                                edit.quantity = newValue;
+                                edit.total_price = null;
+                            }
+                            if(input.classList.contains('total_price')){
+                                edit.total_price = newValue;
+                                edit.quantity = null;
+                            }
+                        }
+                        
                     }
                     params = "?";
                     Object.entries(edit).forEach(([key, value]) => {
@@ -245,7 +298,8 @@
                     cell.classList.remove('editing-cell');
                     
                     // Remove event listeners
-                    input.removeEventListener('blur', finishEdit);
+                    //input.removeEventListener('blur', finishEdit);
+                    document.removeEventListener('click', handleBlur);
                     input.removeEventListener('keydown', handleKeyDown);
                 }
                 
@@ -258,7 +312,7 @@
                     }
                 }
                 
-                input.addEventListener('blur', finishEdit);
+                //input.addEventListener('blur', finishEdit);
                 input.addEventListener('keydown', handleKeyDown);
             }
 
