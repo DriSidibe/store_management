@@ -1,0 +1,8 @@
+<h1>📷 Cameras</h1>
+<ul>
+  {% for cam in cameras %}
+    <li><a href="{% url 'date_list' cam %}">{{ cam }}</a></li>
+  {% empty %}
+    <li>No cameras found.</li>
+  {% endfor %}
+</ul>

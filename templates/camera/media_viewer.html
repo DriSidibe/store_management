@@ -1,0 +1,37 @@
+<h1>Media from {{ camera_id }} on {{ date }}</h1>
+<style>
+  .video-title {
+    margin-top: 8px;
+    font-size: 14px;
+    color: #333;
+    word-wrap: break-word;
+  }
+</style>
+<h2>Images</h2>
+<div style="display: flex; flex-wrap: wrap;">
+  {% for img in images %}
+    <div>
+      <img src="{{ img }}" width="150" style="margin:10px;">
+      <div class="video-title">{{ img|slice:"-13:" }}</div>
+    </div>
+  {% empty %}
+    <p>No images found.</p>
+  {% endfor %}
+</div>
+
+<h2>Videos</h2>
+<div style="display: flex; flex-wrap: wrap;">
+  {% for vid in videos %}
+    <div>
+      <video width="200" controls style="margin:10px;">
+        <source src="{{ vid }}" type="video/mp4">
+        Your browser does not support video.
+      </video>
+      <div class="video-title">{{ vid|slice:"-13:" }}</div>
+    </div>
+  {% empty %}
+    <p>No videos found.</p>
+  {% endfor %}
+</div>
+
+<a href="{% url 'date_list' camera_id %}">⬅ Back to dates</a>

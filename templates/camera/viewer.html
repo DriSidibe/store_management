@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Media Viewer</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        img, video { max-width: 400px; margin: 10px; border: 1px solid #ccc; }
+    </style>
+</head>
+<body>
+    <h1>📸 Images</h1>
+    <div>
+        {% for img in images %}
+            <img src="{{ img }}" alt="Image">
+        {% empty %}
+            <p>No images found.</p>
+        {% endfor %}
+    </div>
+
+    <h1>🎬 Videos</h1>
+    <div>
+        {% for vid in videos %}
+            <video controls>
+                <source src="{{ vid }}" type="video/mp4">
+                Your browser does not support the video tag.
+            </video>
+        {% empty %}
+            <p>No videos found.</p>
+        {% endfor %}
+    </div>
+</body>
+</html>

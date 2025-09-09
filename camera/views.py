@@ -1,3 +1,4 @@
+import os
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from .models import Camera
@@ -68,3 +69,25 @@ def save(request, pk):
         return redirect('camera_stream', pk=pk)
     except Camera.DoesNotExist:
         return JsonResponse({'error': 'Camera not found'}, status=404)
+
+
+BASE_PATH = os.path.join("/var/www/media/motioneye/")
+
+def camera_list(request):
+    cameras = [d for d in os.listdir(BASE_PATH) if os.path.isdir(os.path.join(BASE_PATH, d))]
+    return render(request, "camera/camera_list.html", {"cameras": cameras})
+
+def date_list(request, camera_id):
+    cam_path = os.path.join(BASE_PATH, camera_id)
+    dates = [d for d in os.listdir(cam_path) if os.path.isdir(os.path.join(cam_path, d))]
+    dates.sort(reverse=True)  # dates récentes en premier
+    return render(request, "camera/date_list.html", {"camera_id": camera_id, "dates": dates})
+
+def media_viewer(request, camera_id, date):
+    folder = os.path.join(BASE_PATH, camera_id, date)
+    files = os.listdir(folder)
+
+    images = [f"/media/motioneye/{camera_id}/{date}/{f}" for f in files if f.lower().endswith((".png", ".jpg", ".jpeg", ".gif"))]
+    videos = [f"/media/motioneye/{camera_id}/{date}/{f}" for f in files if f.lower().endswith((".mp4", ".webm", ".ogg"))]
+
+    return render(request, "camera/media_viewer.html", {"camera_id": camera_id, "date": date, "images": images, "videos": videos})

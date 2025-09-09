@@ -136,7 +136,8 @@ STATIC_URL = '/static/'
 STATICFILES_DIRS = [BASE_DIR + '/' + 'static']
 STATIC_ROOT = BASE_DIR + '/' + 'staticfiles'
 
-MEDIA_URL = '/media/'
+MEDIA_ROOT = "/var/www/media"
+MEDIA_URL = "/media/"
 
 IS_PRODUCTION = True
 

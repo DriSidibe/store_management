@@ -1,0 +1,9 @@
+<h1>📅 Dates for {{ camera_id }}</h1>
+<ul>
+  {% for d in dates %}
+    <li><a href="{% url 'media_viewer' camera_id d %}">{{ d }}</a></li>
+  {% empty %}
+    <li>No dates found.</li>
+  {% endfor %}
+</ul>
+<a href="{% url 'camera_list' %}">⬅ Back to cameras</a>

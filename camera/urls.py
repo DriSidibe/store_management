@@ -1,6 +1,6 @@
 
 from django.urls import path
-from camera.views import video_feed, camera_page, save, start_all, stop_all
+from camera.views import video_feed, camera_page, save, start_all, stop_all, camera_list, date_list, media_viewer
 from camera.views_upgraded import camera_stream, camera_control_view, cameras, camera_camera_status, camera_control_flip, save_snapshot
 
 urlpatterns = [
@@ -15,4 +15,7 @@ urlpatterns = [
     path('<int:pk>/flip/', camera_control_flip, name='camera_control_flip'),
     path('save-snapshot/', save_snapshot, name='save_snapshot'),
     path('cameras/', cameras, name='cameras'),
+    path("viewer/", camera_list, name="camera_list"),
+    path("viewer/<str:camera_id>/", date_list, name="date_list"),
+    path("viewer/<str:camera_id>/<str:date>/", media_viewer, name="media_viewer"),
 ]
