@@ -25,7 +25,6 @@ SECRET_KEY = env('SECRET_KEY', default='django-insecure-dev-key-change-me')
 DEBUG = env('DEBUG')
 
 ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['127.0.0.1', 'localhost'])
-HOST = env('HOST', default='http://127.0.0.1:8000')
 
 # Application definition
 
