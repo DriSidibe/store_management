@@ -3,3 +3,10 @@
 env
 recordings*
 thumbnails
+__pycache__/
+*.pyc
+backend/db.sqlite3
+backend/staticfiles/
+node_modules/
+frontend/dist/
+.env

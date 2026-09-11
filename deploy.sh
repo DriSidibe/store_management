@@ -4,11 +4,19 @@
 set -e
 set -x
 
+PROJECT_DIR="/home/drissa/Documents/Projects/store_management"
+BACKEND_DIR="$PROJECT_DIR/backend"
+FRONTEND_DIR="$PROJECT_DIR/frontend"
+
 # Install required packages
 echo "Installing dependencies..."
 pip install gunicorn
 sudo apt update
 sudo apt install -y nginx
+
+# Build the frontend
+echo "Building frontend..."
+(cd "$FRONTEND_DIR" && npm install && npm run build)
 
 # Create Nginx configuration file
 echo "Configuring Nginx..."
@@ -21,7 +29,7 @@ server {
     client_max_body_size 100M;
 
     location = /favicon.ico { access_log off; log_not_found off; }
-    
+
     location /static/ {
         alias /var/www/static/;
         expires 30d;
@@ -34,7 +42,7 @@ server {
         access_log off;
     }
 
-    location / {
+    location /api/ {
         proxy_pass http://127.0.0.1:8000;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
@@ -42,6 +50,19 @@ server {
         proxy_set_header X-Forwarded-Proto \$scheme;
         proxy_connect_timeout 300s;
         proxy_read_timeout 300s;
+    }
+
+    location /admin/ {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+
+    location / {
+        root $FRONTEND_DIR/dist;
+        try_files \$uri /index.html;
     }
 }
 EOF
@@ -74,8 +95,8 @@ After=network.target
 [Service]
 User=$USER
 Group=www-data
-WorkingDirectory=/home/drissa/Documents/Projects/store_management
-ExecStart=/usr/local/bin/gunicorn --access-logfile - --workers 3 --bind unix:/home/drissa/Documents/Projects/store_management.sock store_management.wsgi:application
+WorkingDirectory=$BACKEND_DIR
+ExecStart=/usr/local/bin/gunicorn --access-logfile - --workers 3 --bind unix:$BACKEND_DIR/store_management.sock store_management.wsgi:application
 
 [Install]
 WantedBy=multi-user.target
