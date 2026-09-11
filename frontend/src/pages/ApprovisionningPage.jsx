@@ -118,7 +118,7 @@ export default function ApprovisionningPage() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <div className="space-y-6">
+        <div className="min-w-0 space-y-6">
           <Card>
             <h2 className="mb-3 text-sm font-semibold text-ink">Demander un approvisionnement</h2>
             <form className="space-y-4" onSubmit={handleAddRav}>
@@ -188,7 +188,7 @@ export default function ApprovisionningPage() {
           </Card>
         </div>
 
-        <div className="space-y-6">
+        <div className="min-w-0 space-y-6">
           <Card>
             <h2 className="mb-3 text-sm font-semibold text-ink">Ajouter une entrée fournisseur</h2>
             <form className="space-y-4" onSubmit={handleAddEntrance}>

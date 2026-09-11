@@ -50,7 +50,7 @@ export default function AddProductPage() {
       <h1 className="mb-5 text-xl font-semibold text-ink">Ajouter un produit</h1>
       <Card className="max-w-2xl">
         <form className="space-y-4" onSubmit={handleSubmit}>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="Étagère">
               <Select value={form.product_id_etg} onChange={setField('product_id_etg')} required>
                 <option value="">-- Sélectionner --</option>
@@ -72,7 +72,7 @@ export default function AddProductPage() {
             <Textarea rows={3} value={form.product_description} onChange={setField('product_description')} />
           </Field>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="Unité">
               <Select value={form.product_unity} onChange={setField('product_unity')} required>
                 <option value="">-- Sélectionner --</option>
@@ -86,7 +86,7 @@ export default function AddProductPage() {
             </Field>
           </div>
 
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <Field label="Quantité">
               <Input type="number" min="0" value={form.product_quantity} onChange={setField('product_quantity')} required />
             </Field>

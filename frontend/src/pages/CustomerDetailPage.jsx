@@ -37,8 +37,8 @@ export default function CustomerDetailPage() {
         </Card>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <div>
+      <div className="grid min-w-0 gap-6 lg:grid-cols-2">
+        <div className="min-w-0">
           <h2 className="mb-3 flex items-center gap-1.5 text-sm font-semibold text-ink">
             <ShoppingBag size={15} /> Ventes ({sales.length})
           </h2>
@@ -59,7 +59,7 @@ export default function CustomerDetailPage() {
           </Table>
         </div>
 
-        <div>
+        <div className="min-w-0">
           <h2 className="mb-3 flex items-center gap-1.5 text-sm font-semibold text-ink">
             <Receipt size={15} /> Factures ({bills.length})
           </h2>

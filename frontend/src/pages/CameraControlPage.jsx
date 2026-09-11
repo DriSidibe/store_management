@@ -83,8 +83,8 @@ export default function CameraControlPage() {
     <div>
       <h1 className="mb-5 text-xl font-semibold text-ink">Gestion des caméras</h1>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
+      <div className="grid min-w-0 gap-6 lg:grid-cols-2">
+        <Card className="min-w-0">
           <h2 className="mb-3 text-sm font-semibold text-ink">
             {editingId ? 'Modifier la caméra' : 'Ajouter une caméra'}
           </h2>
@@ -103,7 +103,7 @@ export default function CameraControlPage() {
                 {RESOLUTIONS.map((r) => <option key={r} value={r}>{r}</option>)}
               </Select>
             </Field>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <Field label="Qualité (4-63)">
                 <Input type="number" min="4" max="63" value={form.quality} onChange={setField('quality')} />
               </Field>
@@ -126,7 +126,7 @@ export default function CameraControlPage() {
           </form>
         </Card>
 
-        <div>
+        <div className="min-w-0">
           <Table>
             <Thead><Th>Nom</Th><Th>IP</Th><Th>Résolution</Th><Th></Th></Thead>
             <Tbody>

@@ -102,7 +102,7 @@ export default function UpdateProductPage() {
             {product.product_image && (
               <img src={product.product_image} alt="" className="h-32 w-32 rounded-lg object-cover" />
             )}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label="Étagère">
                 <Select value={form.product_id_etg} onChange={setField('product_id_etg')}>
                   {shelves?.results?.map((s) => (
@@ -123,7 +123,7 @@ export default function UpdateProductPage() {
               <Textarea rows={3} value={form.product_description} onChange={setField('product_description')} />
             </Field>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label="Unité">
                 <Select value={form.product_unity} onChange={setField('product_unity')}>
                   {units?.results?.map((u) => (
@@ -136,7 +136,7 @@ export default function UpdateProductPage() {
               </Field>
             </div>
 
-            <div className="grid grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
               <Field label="Quantité">
                 <Input type="number" min="0" value={form.product_quantity} onChange={setField('product_quantity')} required />
               </Field>
