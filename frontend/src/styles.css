@@ -1,0 +1,76 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --surface: #fcfcfb;
+  --page: #f9f9f7;
+  --ink: #0b0b0b;
+  --ink-secondary: #52514e;
+  --ink-muted: #898781;
+  --border: rgba(11, 11, 11, 0.1);
+  --gridline: #e1e0d9;
+
+  --brand: #2a78d6;
+  --brand-hover: #1c5cab;
+  --success: #0ca30c;
+  --success-text: #006300;
+  --warning: #fab219;
+  --danger: #d03b3b;
+}
+
+.dark {
+  --surface: #1a1a19;
+  --page: #0d0d0d;
+  --ink: #ffffff;
+  --ink-secondary: #c3c2b7;
+  --ink-muted: #898781;
+  --border: rgba(255, 255, 255, 0.1);
+  --gridline: #2c2c2a;
+
+  --brand: #3987e5;
+  --brand-hover: #6da7ec;
+  --success: #0ca30c;
+  --success-text: #0ca30c;
+  --warning: #fab219;
+  --danger: #e66767;
+}
+
+@theme {
+  --font-sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --color-surface: var(--surface);
+  --color-page: var(--page);
+  --color-ink: var(--ink);
+  --color-ink-secondary: var(--ink-secondary);
+  --color-ink-muted: var(--ink-muted);
+  --color-border: var(--border);
+  --color-gridline: var(--gridline);
+
+  --color-brand: var(--brand);
+  --color-brand-hover: var(--brand-hover);
+  --color-success: var(--success);
+  --color-success-text: var(--success-text);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+}
+
+body {
+  background-color: var(--color-page);
+  color: var(--color-ink);
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.15s ease-out;
+}

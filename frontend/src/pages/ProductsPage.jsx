@@ -1,0 +1,160 @@
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { Download, Package, Pencil, Search, Trash2 } from 'lucide-react'
+import { useState } from 'react'
+import { Link } from 'react-router-dom'
+import { deleteProduct, downloadReport, listProducts } from '../api/api'
+import { useAuth } from '../auth/AuthContext'
+import Badge from '../components/ui/Badge'
+import Button from '../components/ui/Button'
+import EmptyState from '../components/ui/EmptyState'
+import { Input } from '../components/ui/Form'
+import { TableSkeleton } from '../components/ui/Skeleton'
+import { Table, Tbody, Td, Th, Thead, Tr } from '../components/ui/Table'
+import { useConfirm } from '../confirm/ConfirmContext'
+import { extractErrorMessage, useToast } from '../toast/ToastContext'
+
+export default function ProductsPage() {
+  const { user } = useAuth()
+  const toast = useToast()
+  const confirm = useConfirm()
+  const queryClient = useQueryClient()
+  const [search, setSearch] = useState('')
+  const [page, setPage] = useState(1)
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['products', search, page],
+    queryFn: () => listProducts({ search: search || undefined, page }),
+  })
+
+  const handleSearch = (e) => {
+    e.preventDefault()
+    setPage(1)
+  }
+
+  const handleDelete = async (productId) => {
+    if (!(await confirm(`Supprimer le produit ${productId} ?`))) return
+    try {
+      await deleteProduct(productId)
+      toast.success('Produit supprimé.')
+      queryClient.invalidateQueries({ queryKey: ['products'] })
+    } catch (err) {
+      toast.error(extractErrorMessage(err))
+    }
+  }
+
+  const pageSize = 20
+  const totalPages = data ? Math.ceil(data.count / pageSize) : 1
+
+  return (
+    <div>
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-xl font-semibold text-ink">Produits</h1>
+        <div className="flex flex-wrap gap-2">
+          <form className="flex gap-2" onSubmit={handleSearch}>
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted" size={16} />
+              <Input
+                className="w-56 pl-9"
+                placeholder="Rechercher un produit..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+            <Button type="submit" variant="outline">Rechercher</Button>
+          </form>
+          <Button variant="outline" onClick={() => downloadReport('produits', 'pdf')}>
+            <Download size={15} /> PDF
+          </Button>
+          <Button variant="outline" onClick={() => downloadReport('produits', 'csv')}>
+            <Download size={15} /> CSV
+          </Button>
+        </div>
+      </div>
+
+      {isLoading ? (
+        <TableSkeleton rows={8} cols={7} />
+      ) : data?.results.length === 0 ? (
+        <EmptyState icon={Package} title="Aucun produit" description="Essaie une autre recherche ou ajoute un produit." />
+      ) : (
+        <Table>
+          <Thead>
+            <Th></Th>
+            <Th>Code</Th>
+            <Th>Nom</Th>
+            <Th>Société</Th>
+            <Th>Quantité</Th>
+            <Th>Prix Achat</Th>
+            <Th>Prix Vente</Th>
+            {user?.is_staff && <Th></Th>}
+          </Thead>
+          <Tbody>
+            {data?.results.map((p) => {
+              const isLow = p.product_quantity <= p.low_stock_threshold
+              return (
+                <Tr key={p.product_id}>
+                  <Td>
+                    {p.product_image ? (
+                      <img src={p.product_image} alt="" className="h-10 w-10 rounded-lg object-cover" />
+                    ) : (
+                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-ink/5 text-ink-muted">
+                        <Package size={16} />
+                      </div>
+                    )}
+                  </Td>
+                  <Td className="font-mono text-xs text-ink-secondary">{p.product_id}</Td>
+                  <Td>{p.product_name}</Td>
+                  <Td>{p.product_company}</Td>
+                  <Td>
+                    <span className="flex items-center gap-1.5">
+                      {p.product_quantity}
+                      {isLow && <Badge variant="danger">Stock faible</Badge>}
+                    </span>
+                  </Td>
+                  <Td>{p.product_cp}</Td>
+                  <Td>{p.product_sp}</Td>
+                  {user?.is_staff && (
+                    <Td>
+                      <div className="flex justify-end gap-1.5">
+                        <Link
+                          to="/update-product"
+                          state={{ productId: p.product_id }}
+                          className="rounded-lg p-1.5 text-ink-secondary hover:bg-ink/5 hover:text-brand"
+                        >
+                          <Pencil size={15} />
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(p.product_id)}
+                          className="rounded-lg p-1.5 text-ink-secondary hover:bg-danger/10 hover:text-danger cursor-pointer"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+                    </Td>
+                  )}
+                </Tr>
+              )
+            })}
+          </Tbody>
+        </Table>
+      )}
+
+      {totalPages > 1 && (
+        <div className="mt-4 flex flex-wrap justify-center gap-1">
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
+            <button
+              key={n}
+              type="button"
+              onClick={() => setPage(n)}
+              className={`h-8 w-8 rounded-lg text-sm font-medium cursor-pointer ${
+                n === page ? 'bg-brand text-white' : 'text-ink-secondary hover:bg-ink/5'
+              }`}
+            >
+              {n}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}

@@ -1,0 +1,129 @@
+import client from './client'
+
+export function toFormData(obj) {
+  const fd = new FormData()
+  Object.entries(obj).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === '') return
+    fd.append(key, value)
+  })
+  return fd
+}
+
+// --- Reference data -------------------------------------------------------
+
+export const listUnits = () => client.get('/units/').then((r) => r.data)
+export const listShelves = () => client.get('/shelves/').then((r) => r.data)
+
+// --- Products ---------------------------------------------------------------
+
+export const listProducts = (params) => client.get('/products/', { params }).then((r) => r.data)
+export const getProduct = (productId) => client.get(`/products/${productId}/`).then((r) => r.data)
+export const productsLookup = () => client.get('/products/lookup/').then((r) => r.data)
+export const listLowStockProducts = (params) =>
+  client.get('/products/low-stock/', { params }).then((r) => r.data)
+export const createProduct = (data) =>
+  client.post('/products/', toFormData(data)).then((r) => r.data)
+export const updateProduct = (productId, data) =>
+  client.patch(`/products/${productId}/`, toFormData(data)).then((r) => r.data)
+export const deleteProduct = (productId) => client.delete(`/products/${productId}/`)
+
+// --- Sales --------------------------------------------------------------
+
+export const listSales = (params) => client.get('/sales/', { params }).then((r) => r.data)
+export const dailySales = (date) =>
+  client.get('/sales/daily/', { params: date ? { date } : {} }).then((r) => r.data)
+export const createSale = (data) => client.post('/sales/', toFormData(data)).then((r) => r.data)
+export const updateSale = (id, data) =>
+  client.patch(`/sales/${id}/`, toFormData(data)).then((r) => r.data)
+export const deleteSale = (id) => client.delete(`/sales/${id}/`)
+export const promoteSaleToProduct = (id) =>
+  client.post(`/sales/${id}/promote-to-product/`).then((r) => r.data)
+
+// --- Approvisionnement ----------------------------------------------------
+
+export const listRavitaillement = () => client.get('/ravitaillement/').then((r) => r.data)
+export const createRavitaillement = (data) =>
+  client.post('/ravitaillement/', toFormData(data)).then((r) => r.data)
+export const updateRavitaillement = (id, data) =>
+  client.patch(`/ravitaillement/${id}/`, toFormData(data)).then((r) => r.data)
+export const deleteRavitaillement = (id) => client.delete(`/ravitaillement/${id}/`)
+export const promoteRavitaillementToProduct = (id) =>
+  client.post(`/ravitaillement/${id}/promote-to-product/`).then((r) => r.data)
+
+export const listSupplierEntrances = () => client.get('/supplier-entrances/').then((r) => r.data)
+export const createSupplierEntrance = (data) =>
+  client.post('/supplier-entrances/', toFormData(data)).then((r) => r.data)
+
+// --- Billing ---------------------------------------------------------------
+
+export const listBills = () => client.get('/bills/').then((r) => r.data)
+export const createBill = (customerName) =>
+  client.post('/bills/', { customer_name: customerName }).then((r) => r.data)
+export const listBillItems = (billId) => client.get(`/bills/${billId}/items/`).then((r) => r.data)
+export const addBillItem = (billId, productId, quantity) =>
+  client
+    .post(`/bills/${billId}/items/`, { product_id: productId, quantity })
+    .then((r) => r.data)
+export const finalizeBill = (billId) =>
+  client.get(`/bills/${billId}/finalize/`).then((r) => r.data)
+
+// --- Customers ---------------------------------------------------------------
+
+export const listCustomers = (params) => client.get('/customers/', { params }).then((r) => r.data)
+export const getCustomer = (id) => client.get(`/customers/${id}/`).then((r) => r.data)
+export const createCustomer = (data) => client.post('/customers/', data).then((r) => r.data)
+export const updateCustomer = (id, data) => client.patch(`/customers/${id}/`, data).then((r) => r.data)
+export const deleteCustomer = (id) => client.delete(`/customers/${id}/`)
+export const customerHistory = (id) => client.get(`/customers/${id}/history/`).then((r) => r.data)
+
+// --- Activity log -----------------------------------------------------------
+
+export const listActivityLog = (params) =>
+  client.get('/activity-log/', { params }).then((r) => r.data)
+
+// --- Metrics & reports -------------------------------------------------------
+
+export const fetchMetrics = () => client.get('/metrics/').then((r) => r.data)
+export const fetchSalesTrend = (days = 30) =>
+  client.get('/metrics/trend/', { params: { days } }).then((r) => r.data)
+export const fetchTopProducts = (limit = 5) =>
+  client.get('/metrics/top-products/', { params: { limit } }).then((r) => r.data)
+
+export const globalSearch = (q) => client.get('/search/', { params: { q } }).then((r) => r.data)
+
+export async function downloadReport(target, format = 'pdf') {
+  const params = format === 'csv' ? { export: 'csv' } : {}
+  const response = await client.get(`/reports/${target}/`, { params, responseType: 'blob' })
+  const url = URL.createObjectURL(response.data)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `${target}.${format}`
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(url)
+}
+
+// --- Camera ---------------------------------------------------------------
+
+export const listCameras = () => client.get('/camera/cameras/').then((r) => r.data)
+export const getCamera = (id) => client.get(`/camera/cameras/${id}/`).then((r) => r.data)
+export const createCamera = (data) => client.post('/camera/cameras/', data).then((r) => r.data)
+export const updateCamera = (id, data) =>
+  client.patch(`/camera/cameras/${id}/`, data).then((r) => r.data)
+export const deleteCamera = (id) => client.delete(`/camera/cameras/${id}/`)
+export const cameraStatus = (id) => client.get(`/camera/cameras/${id}/status/`).then((r) => r.data)
+export const flipCamera = (id, type, enabled) =>
+  client.post(`/camera/cameras/${id}/flip/`, { type, enabled }).then((r) => r.data)
+export const saveCameraStream = (id) =>
+  client.post(`/camera/cameras/${id}/save/`).then((r) => r.data)
+export const startAllCameras = () => client.get('/camera/start-all/').then((r) => r.data)
+export const stopAllCameras = () => client.get('/camera/stop-all/').then((r) => r.data)
+export const saveSnapshot = (cameraId, snapshot) =>
+  client.post('/camera/save-snapshot/', { camera_id: cameraId, snapshot }).then((r) => r.data)
+export const listLocalRecordings = () => client.get('/camera/recordings/').then((r) => r.data)
+export const listMotionEyeCameras = () => client.get('/camera/motioneye/').then((r) => r.data)
+export const listMotionEyeDates = (cameraId) =>
+  client.get(`/camera/motioneye/${cameraId}/`).then((r) => r.data)
+export const listMotionEyeMedia = (cameraId, date) =>
+  client.get(`/camera/motioneye/${cameraId}/${date}/`).then((r) => r.data)
