@@ -20,10 +20,12 @@ import MotionEyeDatesPage from './pages/MotionEyeDatesPage'
 import MotionEyeMediaPage from './pages/MotionEyeMediaPage'
 import MotionEyeViewerPage from './pages/MotionEyeViewerPage'
 import ProductsPage from './pages/ProductsPage'
+import ReceiptPage from './pages/ReceiptPage'
 import SellProductPage from './pages/SellProductPage'
 import SignupPage from './pages/SignupPage'
 import SoldProductsPage from './pages/SoldProductsPage'
 import UpdateProductPage from './pages/UpdateProductPage'
+import UsersPage from './pages/UsersPage'
 
 export default function App() {
   return (
@@ -32,6 +34,8 @@ export default function App() {
       <Route path="/signup" element={<SignupPage />} />
 
       <Route element={<ProtectedRoute />}>
+        <Route path="/receipt/:saleId" element={<ReceiptPage />} />
+
         <Route element={<Layout />}>
           <Route path="/" element={<ProductsPage />} />
           <Route path="/sell-product" element={<SellProductPage />} />
@@ -55,6 +59,7 @@ export default function App() {
             <Route path="/final-bill/:billId" element={<FinalBillPage />} />
             <Route path="/metrics" element={<MetricsPage />} />
             <Route path="/activity-log" element={<ActivityLogPage />} />
+            <Route path="/users" element={<UsersPage />} />
             <Route path="/camera/control" element={<CameraControlPage />} />
             <Route path="/camera/viewer" element={<MotionEyeViewerPage />} />
             <Route path="/camera/viewer/:cameraId" element={<MotionEyeDatesPage />} />

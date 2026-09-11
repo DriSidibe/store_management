@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import {
   AlertTriangle, BarChart3, Camera, FileText, History, LayoutGrid, LogOut, Menu,
-  Moon, PackagePlus, PenSquare, Receipt, ShoppingCart, Sun, Truck, Users, Video, X,
+  Moon, PackagePlus, PenSquare, Receipt, ShoppingCart, Sun, Truck, UserCog, Users,
+  Video, X,
 } from 'lucide-react'
 import { useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
@@ -28,6 +29,7 @@ const adminNav = [
   { to: '/billing', label: 'Facturation', icon: FileText },
   { to: '/metrics', label: 'Statistiques', icon: BarChart3 },
   { to: '/activity-log', label: "Journal d'activité", icon: History },
+  { to: '/users', label: 'Utilisateurs', icon: UserCog },
   { to: '/camera/viewer', label: 'Vidéos', icon: Video },
 ]
 

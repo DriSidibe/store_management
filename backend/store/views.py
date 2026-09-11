@@ -88,6 +88,77 @@ class ProductViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(page if page is not None else products, many=True)
         return self.get_paginated_response(serializer.data) if page is not None else Response(serializer.data)
 
+    @action(detail=False, methods=['post'], url_path='import-csv')
+    def import_csv(self, request):
+        """Bulk create/update products from a CSV file. Rows with an existing
+        product_id are updated in place; rows without one are created, and
+        require product_id_etg/product_id_cas/product_name/product_unity."""
+        upload = request.FILES.get('file')
+        if not upload:
+            return Response({'detail': 'No file provided.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            decoded = io.TextIOWrapper(upload.file, encoding='utf-8-sig')
+            reader = csv.DictReader(decoded)
+        except Exception:
+            return Response({'detail': 'Invalid CSV file.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        created, updated, errors = 0, 0, []
+        for i, raw_row in enumerate(reader, start=2):
+            try:
+                row = {k.strip(): (v or '').strip() for k, v in raw_row.items() if k}
+                product_id = row.get('product_id', '').upper()
+
+                unity = None
+                if row.get('product_unity'):
+                    unity, _ = Unity.objects.get_or_create(name=row['product_unity'])
+
+                fields = {}
+                if row.get('product_name'):
+                    fields['product_name'] = row['product_name'].title()
+                if row.get('product_description'):
+                    fields['product_description'] = row['product_description']
+                if unity:
+                    fields['product_unity'] = unity
+                if row.get('product_quantity'):
+                    fields['product_quantity'] = int(row['product_quantity'])
+                if row.get('product_company'):
+                    fields['product_company'] = row['product_company']
+                if row.get('product_cp'):
+                    fields['product_cp'] = float(row['product_cp'])
+                if row.get('product_sp'):
+                    fields['product_sp'] = float(row['product_sp'])
+                if row.get('low_stock_threshold'):
+                    fields['low_stock_threshold'] = int(row['low_stock_threshold'])
+
+                existing = Product.objects.filter(product_id=product_id) if product_id else None
+                if existing and existing.exists():
+                    existing.update(**fields)
+                    updated += 1
+                    continue
+
+                etage, casier = row.get('product_id_etg'), row.get('product_id_cas')
+                if not (etage and casier and fields.get('product_name') and unity):
+                    errors.append({
+                        'row': i,
+                        'message': ("Champs requis manquants pour créer un produit "
+                                    "(product_id_etg, product_id_cas, product_name, product_unity)."),
+                    })
+                    continue
+                fields.setdefault('product_quantity', 0)
+                fields.setdefault('product_cp', 0)
+                fields.setdefault('product_sp', 0)
+                Product.objects.create(product_id=generate_product_id(etage, casier), **fields)
+                created += 1
+            except Exception as e:
+                errors.append({'row': i, 'message': str(e)})
+
+        log_activity(
+            request, 'imported', 'Product',
+            f"{created} créés, {updated} mis à jour", f"{len(errors)} erreurs",
+        )
+        return Response({'created': created, 'updated': updated, 'errors': errors})
+
 
 class SellViewSet(viewsets.ModelViewSet):
     queryset = Sell.objects.all().order_by('-sell_date')

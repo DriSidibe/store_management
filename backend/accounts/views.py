@@ -1,10 +1,15 @@
-from rest_framework import generics, permissions
+from django.contrib.auth.models import User
+from rest_framework import generics, permissions, viewsets
+from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 from rest_framework_simplejwt.exceptions import InvalidToken
 
-from .serializers import RegisterSerializer, UserSerializer
+from store.permissions import IsSuperUser
+from store.utils import log_activity
+
+from .serializers import RegisterSerializer, UserManagementSerializer, UserSerializer
 
 
 class RegisterView(generics.CreateAPIView):
@@ -43,3 +48,33 @@ class LogoutView(APIView):
             except TokenError:
                 raise InvalidToken('Invalid or already blacklisted refresh token.')
         return Response(status=205)
+
+
+class UserViewSet(viewsets.ModelViewSet):
+    """User & permissions administration (superuser only) - lets an admin
+    manage accounts and roles (staff/superuser/active) without the Django
+    admin site."""
+    queryset = User.objects.all().order_by('username')
+    serializer_class = UserManagementSerializer
+    permission_classes = [IsSuperUser]
+
+    def perform_create(self, serializer):
+        user = serializer.save()
+        log_activity(self.request, 'created', 'User', user.username)
+
+    def perform_update(self, serializer):
+        instance = serializer.instance
+        if instance == self.request.user:
+            data = serializer.validated_data
+            if data.get('is_superuser') is False or data.get('is_active') is False:
+                raise ValidationError(
+                    "Vous ne pouvez pas retirer vos propres droits superuser ou désactiver votre compte."
+                )
+        user = serializer.save()
+        log_activity(self.request, 'updated', 'User', user.username)
+
+    def perform_destroy(self, instance):
+        if instance == self.request.user:
+            raise ValidationError("Vous ne pouvez pas supprimer votre propre compte.")
+        log_activity(self.request, 'deleted', 'User', instance.username)
+        instance.delete()

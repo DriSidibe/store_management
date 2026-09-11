@@ -26,10 +26,13 @@ export const createProduct = (data) =>
 export const updateProduct = (productId, data) =>
   client.patch(`/products/${productId}/`, toFormData(data)).then((r) => r.data)
 export const deleteProduct = (productId) => client.delete(`/products/${productId}/`)
+export const importProductsCsv = (file) =>
+  client.post('/products/import-csv/', toFormData({ file })).then((r) => r.data)
 
 // --- Sales --------------------------------------------------------------
 
 export const listSales = (params) => client.get('/sales/', { params }).then((r) => r.data)
+export const getSale = (id) => client.get(`/sales/${id}/`).then((r) => r.data)
 export const dailySales = (date) =>
   client.get('/sales/daily/', { params: date ? { date } : {} }).then((r) => r.data)
 export const createSale = (data) => client.post('/sales/', toFormData(data)).then((r) => r.data)
@@ -103,6 +106,13 @@ export async function downloadReport(target, format = 'pdf') {
   link.remove()
   URL.revokeObjectURL(url)
 }
+
+// --- Users & permissions -----------------------------------------------------
+
+export const listUsers = (params) => client.get('/auth/users/', { params }).then((r) => r.data)
+export const createUser = (data) => client.post('/auth/users/', data).then((r) => r.data)
+export const updateUser = (id, data) => client.patch(`/auth/users/${id}/`, data).then((r) => r.data)
+export const deleteUser = (id) => client.delete(`/auth/users/${id}/`)
 
 // --- Camera ---------------------------------------------------------------
 

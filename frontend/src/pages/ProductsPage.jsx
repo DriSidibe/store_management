@@ -1,8 +1,8 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Download, Package, Pencil, Search, Trash2 } from 'lucide-react'
-import { useState } from 'react'
+import { Download, Package, Pencil, Search, Trash2, Upload } from 'lucide-react'
+import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { deleteProduct, downloadReport, listProducts } from '../api/api'
+import { deleteProduct, downloadReport, importProductsCsv, listProducts } from '../api/api'
 import { useAuth } from '../auth/AuthContext'
 import Badge from '../components/ui/Badge'
 import Button from '../components/ui/Button'
@@ -20,6 +20,8 @@ export default function ProductsPage() {
   const queryClient = useQueryClient()
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
+  const [importing, setImporting] = useState(false)
+  const importInputRef = useRef(null)
 
   const { data, isLoading } = useQuery({
     queryKey: ['products', search, page],
@@ -39,6 +41,28 @@ export default function ProductsPage() {
       queryClient.invalidateQueries({ queryKey: ['products'] })
     } catch (err) {
       toast.error(extractErrorMessage(err))
+    }
+  }
+
+  const handleImportFile = async (e) => {
+    const file = e.target.files[0]
+    e.target.value = ''
+    if (!file) return
+    setImporting(true)
+    try {
+      const result = await importProductsCsv(file)
+      if (result.errors.length > 0) {
+        toast.error(
+          `${result.created} créés, ${result.updated} mis à jour, ${result.errors.length} erreurs (ligne ${result.errors[0].row}: ${result.errors[0].message})`,
+        )
+      } else {
+        toast.success(`Import réussi : ${result.created} créés, ${result.updated} mis à jour.`)
+      }
+      queryClient.invalidateQueries({ queryKey: ['products'] })
+    } catch (err) {
+      toast.error(extractErrorMessage(err))
+    } finally {
+      setImporting(false)
     }
   }
 
@@ -68,6 +92,24 @@ export default function ProductsPage() {
           <Button variant="outline" onClick={() => downloadReport('produits', 'csv')}>
             <Download size={15} /> CSV
           </Button>
+          {user?.is_staff && (
+            <>
+              <input
+                ref={importInputRef}
+                type="file"
+                accept=".csv,text/csv"
+                className="hidden"
+                onChange={handleImportFile}
+              />
+              <Button
+                variant="outline"
+                disabled={importing}
+                onClick={() => importInputRef.current?.click()}
+              >
+                <Upload size={15} /> {importing ? 'Import...' : 'Importer CSV'}
+              </Button>
+            </>
+          )}
         </div>
       </div>
 

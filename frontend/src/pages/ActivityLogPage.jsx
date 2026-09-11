@@ -8,7 +8,7 @@ import { Select } from '../components/ui/Form'
 import { TableSkeleton } from '../components/ui/Skeleton'
 import { Table, Tbody, Td, Th, Thead, Tr } from '../components/ui/Table'
 
-const MODELS = ['Product', 'Sell', 'Ravitaillement', 'Bill', 'BillItems', 'Customer']
+const MODELS = ['Product', 'Sell', 'Ravitaillement', 'Bill', 'BillItems', 'Customer', 'User']
 
 const ACTION_VARIANTS = {
   created: 'success',

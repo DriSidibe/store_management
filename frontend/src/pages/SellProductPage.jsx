@@ -1,5 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
+import { Printer } from 'lucide-react'
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { createSale, getProduct, listCustomers } from '../api/api'
 import Button from '../components/ui/Button'
 import Card from '../components/ui/Card'
@@ -23,6 +25,7 @@ export default function SellProductPage() {
   })
   const [image, setImage] = useState(null)
   const [submitting, setSubmitting] = useState(false)
+  const [lastSaleId, setLastSaleId] = useState(null)
 
   const handleLookup = async () => {
     setLookupError(null)
@@ -43,7 +46,7 @@ export default function SellProductPage() {
     e.preventDefault()
     setSubmitting(true)
     try {
-      await createSale({
+      const sale = await createSale({
         product: product ? product.id : undefined,
         product_name: form.product_name,
         quantity: form.quantity,
@@ -53,6 +56,7 @@ export default function SellProductPage() {
         product_image: image,
       })
       toast.success('Produit vendu avec succès !')
+      setLastSaleId(sale.id)
       setProductId('')
       setProduct(null)
       setForm({ product_name: '', quantity: 1, price: '', customer: '', date: today() })
@@ -68,6 +72,16 @@ export default function SellProductPage() {
   return (
     <div>
       <h1 className="mb-5 text-xl font-semibold text-ink">Vendre un produit</h1>
+
+      {lastSaleId && (
+        <div className="mb-4 flex max-w-xl items-center justify-between rounded-lg border border-success/20 bg-success/10 px-4 py-2.5 text-sm text-success-text">
+          Vente enregistrée.
+          <Link to={`/receipt/${lastSaleId}`} className="flex items-center gap-1.5 font-medium hover:underline">
+            <Printer size={14} /> Imprimer le ticket
+          </Link>
+        </div>
+      )}
+
       <Card className="max-w-xl">
         <form className="space-y-4" onSubmit={handleSubmit}>
           <Field label="Code produit (optionnel)">
@@ -92,7 +106,7 @@ export default function SellProductPage() {
             <Input value={form.product_name} onChange={setField('product_name')} required readOnly={!!product} />
           </Field>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="Quantité">
               <Input type="number" min="1" value={form.quantity} onChange={setField('quantity')} required />
             </Field>
@@ -101,7 +115,7 @@ export default function SellProductPage() {
             </Field>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="Client (optionnel)">
               <Input value={form.customer} onChange={setField('customer')} list="customer-names" />
               <datalist id="customer-names">

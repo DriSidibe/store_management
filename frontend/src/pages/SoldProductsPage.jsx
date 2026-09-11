@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Download, PlusCircle, Receipt, Trash2 } from 'lucide-react'
+import { Download, Printer, PlusCircle, Receipt, Trash2 } from 'lucide-react'
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { dailySales, deleteSale, downloadReport, promoteSaleToProduct } from '../api/api'
 import Button from '../components/ui/Button'
 import EmptyState from '../components/ui/EmptyState'
@@ -93,6 +94,13 @@ export default function SoldProductsPage() {
                     <Td>{data.benefits[s.id] ? data.benefits[s.id][0].toFixed(0) : '-'}</Td>
                     <Td>
                       <div className="flex justify-end gap-1.5">
+                        <Link
+                          to={`/receipt/${s.id}`}
+                          title="Imprimer le ticket"
+                          className="rounded-lg p-1.5 text-ink-secondary hover:bg-brand/10 hover:text-brand"
+                        >
+                          <Printer size={15} />
+                        </Link>
                         {!s.product && (
                           <button
                             type="button"
