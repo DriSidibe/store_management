@@ -1,12 +1,28 @@
 import { useQuery } from '@tanstack/react-query'
-import { Search } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { getProduct, listShelves, listUnits, updateProduct } from '../api/api'
+import ProductAutocomplete from '../components/ProductAutocomplete'
 import Button from '../components/ui/Button'
 import Card from '../components/ui/Card'
 import { Field, Input, Select, Textarea } from '../components/ui/Form'
 import { extractErrorMessage, useToast } from '../toast/ToastContext'
+
+function toForm(p) {
+  const [, etg, cas] = p.product_id.split('-')
+  return {
+    product_id_etg: etg,
+    product_id_cas: cas,
+    product_name: p.product_name,
+    product_description: p.product_description,
+    product_unity: p.product_unity,
+    product_quantity: p.product_quantity,
+    product_company: p.product_company,
+    product_cp: p.product_cp,
+    product_sp: p.product_sp,
+    low_stock_threshold: p.low_stock_threshold,
+  }
+}
 
 export default function UpdateProductPage() {
   const toast = useToast()
@@ -14,48 +30,26 @@ export default function UpdateProductPage() {
   const { data: shelves } = useQuery({ queryKey: ['shelves'], queryFn: listShelves })
   const { data: units } = useQuery({ queryKey: ['units'], queryFn: listUnits })
 
-  const [searchId, setSearchId] = useState(location.state?.productId || '')
   const [product, setProduct] = useState(null)
   const [form, setForm] = useState(null)
   const [image, setImage] = useState(null)
   const [notFound, setNotFound] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
-  const loadProduct = async (id) => {
-    if (!id) return
+  const selectProduct = (p) => {
     setNotFound(false)
-    try {
-      const p = await getProduct(id.toUpperCase())
-      setProduct(p)
-      const [, etg, cas] = p.product_id.split('-')
-      setForm({
-        product_id_etg: etg,
-        product_id_cas: cas,
-        product_name: p.product_name,
-        product_description: p.product_description,
-        product_unity: p.product_unity,
-        product_quantity: p.product_quantity,
-        product_company: p.product_company,
-        product_cp: p.product_cp,
-        product_sp: p.product_sp,
-        low_stock_threshold: p.low_stock_threshold,
-      })
-    } catch {
-      setProduct(null)
-      setForm(null)
-      setNotFound(true)
-    }
+    setProduct(p)
+    setForm(toForm(p))
   }
 
   useEffect(() => {
-    if (location.state?.productId) loadProduct(location.state.productId)
+    if (location.state?.productId) {
+      getProduct(location.state.productId)
+        .then(selectProduct)
+        .catch(() => setNotFound(true))
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-
-  const handleSearch = (e) => {
-    e.preventDefault()
-    loadProduct(searchId)
-  }
 
   const setField = (field) => (e) => setForm({ ...form, [field]: e.target.value })
 
@@ -77,18 +71,13 @@ export default function UpdateProductPage() {
   return (
     <div>
       <h1 className="mb-5 text-xl font-semibold text-ink">Modifier un produit</h1>
-      <form className="mb-6 flex max-w-lg gap-2" onSubmit={handleSearch}>
-        <div className="relative flex-1">
-          <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted" size={16} />
-          <Input
-            className="pl-9 uppercase"
-            placeholder="Code produit (ex: AM-A-1-00001)"
-            value={searchId}
-            onChange={(e) => setSearchId(e.target.value)}
-          />
-        </div>
-        <Button type="submit" variant="outline">Rechercher</Button>
-      </form>
+
+      <div className="mb-6 max-w-lg">
+        <ProductAutocomplete
+          placeholder="Tape le nom ou le code du produit à modifier..."
+          onSelect={selectProduct}
+        />
+      </div>
 
       {notFound && (
         <p className="mb-4 max-w-lg rounded-lg border border-danger/20 bg-danger/10 px-3 py-2 text-sm text-danger">
@@ -99,9 +88,18 @@ export default function UpdateProductPage() {
       {product && form && (
         <Card className="max-w-2xl">
           <form className="space-y-4" onSubmit={handleSubmit}>
-            {product.product_image && (
-              <img src={product.product_image} alt="" className="h-32 w-32 rounded-lg object-cover" />
-            )}
+            <div className="flex items-center gap-3">
+              {product.product_image ? (
+                <img src={product.product_image} alt="" className="h-16 w-16 rounded-lg object-cover" />
+              ) : (
+                <div className="h-16 w-16 rounded-lg bg-ink/5" />
+              )}
+              <div>
+                <p className="text-sm font-medium text-ink">{product.product_name}</p>
+                <p className="font-mono text-xs text-ink-muted">{product.product_id}</p>
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label="Étagère">
                 <Select value={form.product_id_etg} onChange={setField('product_id_etg')}>

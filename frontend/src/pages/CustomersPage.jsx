@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom'
 import { createCustomer, deleteCustomer, listCustomers } from '../api/api'
 import Button from '../components/ui/Button'
 import Card from '../components/ui/Card'
+import { CardStack } from '../components/ui/CardList'
 import EmptyState from '../components/ui/EmptyState'
 import { Field, Input } from '../components/ui/Form'
 import { TableSkeleton } from '../components/ui/Skeleton'
@@ -54,8 +55,8 @@ export default function CustomersPage() {
     <div>
       <h1 className="mb-5 text-xl font-semibold text-ink">Clients</h1>
 
-      <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
-        <Card className="h-fit">
+      <div className="grid min-w-0 gap-6 lg:grid-cols-[320px_1fr]">
+        <Card className="h-fit min-w-0">
           <h2 className="mb-3 text-sm font-semibold text-ink">Ajouter un client</h2>
           <form className="space-y-4" onSubmit={handleSubmit}>
             <Field label="Nom">
@@ -75,31 +76,57 @@ export default function CustomersPage() {
         ) : data?.results.length === 0 ? (
           <EmptyState icon={Users} title="Aucun client" description="Ajoute un premier client pour suivre son historique d'achats." />
         ) : (
-          <Table>
-            <Thead><Th>Nom</Th><Th>Téléphone</Th><Th>Depuis</Th><Th></Th></Thead>
-            <Tbody>
+          <div className="min-w-0">
+            <CardStack>
               {data?.results.map((c) => (
-                <Tr key={c.id}>
-                  <Td>
-                    <Link to={`/customers/${c.id}`} className="font-medium text-brand hover:underline">
+                <Card key={c.id} className="flex items-center justify-between gap-2 p-3">
+                  <div className="min-w-0">
+                    <Link to={`/customers/${c.id}`} className="truncate font-medium text-brand hover:underline">
                       {c.name}
                     </Link>
-                  </Td>
-                  <Td>{c.phone || '-'}</Td>
-                  <Td>{new Date(c.created_at).toLocaleDateString()}</Td>
-                  <Td>
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(c.id, c.name)}
-                      className="rounded-lg p-1.5 text-ink-secondary hover:bg-danger/10 hover:text-danger cursor-pointer"
-                    >
-                      <Trash2 size={15} />
-                    </button>
-                  </Td>
-                </Tr>
+                    <p className="text-xs text-ink-muted">
+                      {c.phone || 'Pas de téléphone'} · depuis {new Date(c.created_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(c.id, c.name)}
+                    className="shrink-0 rounded-lg p-1.5 text-ink-secondary hover:bg-danger/10 hover:text-danger cursor-pointer"
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                </Card>
               ))}
-            </Tbody>
-          </Table>
+            </CardStack>
+
+            <div className="hidden md:block">
+              <Table>
+                <Thead><Th>Nom</Th><Th>Téléphone</Th><Th>Depuis</Th><Th></Th></Thead>
+                <Tbody>
+                  {data?.results.map((c) => (
+                    <Tr key={c.id}>
+                      <Td>
+                        <Link to={`/customers/${c.id}`} className="font-medium text-brand hover:underline">
+                          {c.name}
+                        </Link>
+                      </Td>
+                      <Td>{c.phone || '-'}</Td>
+                      <Td>{new Date(c.created_at).toLocaleDateString()}</Td>
+                      <Td>
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(c.id, c.name)}
+                          className="rounded-lg p-1.5 text-ink-secondary hover:bg-danger/10 hover:text-danger cursor-pointer"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </Td>
+                    </Tr>
+                  ))}
+                </Tbody>
+              </Table>
+            </div>
+          </div>
         )}
       </div>
     </div>

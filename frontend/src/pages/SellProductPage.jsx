@@ -1,8 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
-import { Printer } from 'lucide-react'
+import { Printer, X } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { createSale, getProduct, listCustomers } from '../api/api'
+import { createSale, listCustomers } from '../api/api'
+import ProductAutocomplete from '../components/ProductAutocomplete'
 import Button from '../components/ui/Button'
 import Card from '../components/ui/Card'
 import { Field, Input } from '../components/ui/Form'
@@ -13,9 +14,7 @@ const today = () => new Date().toISOString().slice(0, 10)
 export default function SellProductPage() {
   const toast = useToast()
   const { data: customers } = useQuery({ queryKey: ['customers'], queryFn: () => listCustomers() })
-  const [productId, setProductId] = useState('')
   const [product, setProduct] = useState(null)
-  const [lookupError, setLookupError] = useState(null)
   const [form, setForm] = useState({
     product_name: '',
     quantity: 1,
@@ -27,17 +26,14 @@ export default function SellProductPage() {
   const [submitting, setSubmitting] = useState(false)
   const [lastSaleId, setLastSaleId] = useState(null)
 
-  const handleLookup = async () => {
-    setLookupError(null)
-    if (!productId) return
-    try {
-      const p = await getProduct(productId.toUpperCase())
-      setProduct(p)
-      setForm((f) => ({ ...f, product_name: p.product_name }))
-    } catch {
-      setProduct(null)
-      setLookupError('Produit introuvable - il sera enregistré comme vente hors catalogue.')
-    }
+  const handleSelectProduct = (p) => {
+    setProduct(p)
+    setForm((f) => ({ ...f, product_name: p.product_name }))
+  }
+
+  const clearProduct = () => {
+    setProduct(null)
+    setForm((f) => ({ ...f, product_name: '' }))
   }
 
   const setField = (field) => (e) => setForm({ ...form, [field]: e.target.value })
@@ -57,8 +53,7 @@ export default function SellProductPage() {
       })
       toast.success('Produit vendu avec succès !')
       setLastSaleId(sale.id)
-      setProductId('')
-      setProduct(null)
+      clearProduct()
       setForm({ product_name: '', quantity: 1, price: '', customer: '', date: today() })
       setImage(null)
       e.target.reset()
@@ -84,22 +79,39 @@ export default function SellProductPage() {
 
       <Card className="max-w-xl">
         <form className="space-y-4" onSubmit={handleSubmit}>
-          <Field label="Code produit (optionnel)">
-            <div className="flex gap-2">
-              <Input
-                className="uppercase"
-                value={productId}
-                onChange={(e) => setProductId(e.target.value)}
-                placeholder="ex: AM-A-1-00001"
+          <Field label="Produit (nom ou code, optionnel)">
+            {product ? (
+              <div className="flex items-center gap-3 rounded-lg border border-success/20 bg-success/10 p-2.5">
+                {product.product_image ? (
+                  <img src={product.product_image} alt="" className="h-10 w-10 rounded-md object-cover" />
+                ) : (
+                  <div className="h-10 w-10 shrink-0 rounded-md bg-ink/10" />
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-success-text">{product.product_name}</p>
+                  <p className="text-xs text-success-text/80">
+                    {product.product_id} · Stock: {product.product_quantity} · Prix: {product.product_sp}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={clearProduct}
+                  className="shrink-0 rounded-lg p-1.5 text-success-text hover:bg-success/20 cursor-pointer"
+                >
+                  <X size={15} />
+                </button>
+              </div>
+            ) : (
+              <ProductAutocomplete
+                placeholder="Tape le nom ou le code du produit..."
+                onSelect={handleSelectProduct}
               />
-              <Button type="button" variant="outline" onClick={handleLookup}>Rechercher</Button>
-            </div>
-            {product && (
-              <p className="mt-1.5 text-xs text-success-text">
-                {product.product_name} - Stock: {product.product_quantity} - Prix: {product.product_sp}
+            )}
+            {!product && (
+              <p className="mt-1.5 text-xs text-ink-muted">
+                Rien trouvé ? Continue avec le nom ci-dessous, ce sera enregistré comme vente hors catalogue.
               </p>
             )}
-            {lookupError && <p className="mt-1.5 text-xs text-warning">{lookupError}</p>}
           </Field>
 
           <Field label="Nom du produit">

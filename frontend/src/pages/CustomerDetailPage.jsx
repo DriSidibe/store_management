@@ -3,6 +3,7 @@ import { ArrowLeft, Phone, Receipt, ShoppingBag } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
 import { customerHistory } from '../api/api'
 import Card from '../components/ui/Card'
+import { CardStack } from '../components/ui/CardList'
 import { Table, Tbody, Td, Th, Thead, Tr } from '../components/ui/Table'
 
 export default function CustomerDetailPage() {
@@ -42,45 +43,76 @@ export default function CustomerDetailPage() {
           <h2 className="mb-3 flex items-center gap-1.5 text-sm font-semibold text-ink">
             <ShoppingBag size={15} /> Ventes ({sales.length})
           </h2>
-          <Table>
-            <Thead><Th>Produit</Th><Th>Quantité</Th><Th>Total</Th></Thead>
-            <Tbody>
-              {sales.map((s) => (
-                <Tr key={s.id}>
-                  <Td>{s.product_name_display}</Td>
-                  <Td>{s.quantity}</Td>
-                  <Td>{s.total_price} FCFA</Td>
-                </Tr>
-              ))}
-              {sales.length === 0 && (
-                <Tr><Td colSpan={3} className="text-center text-ink-muted">Aucune vente.</Td></Tr>
-              )}
-            </Tbody>
-          </Table>
+
+          <CardStack>
+            {sales.map((s) => (
+              <Card key={s.id} className="flex items-center justify-between p-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-ink">{s.product_name_display}</p>
+                  <p className="text-xs text-ink-muted">Quantité : {s.quantity}</p>
+                </div>
+                <p className="shrink-0 font-semibold text-ink">{s.total_price} FCFA</p>
+              </Card>
+            ))}
+            {sales.length === 0 && <p className="text-center text-sm text-ink-muted">Aucune vente.</p>}
+          </CardStack>
+
+          <div className="hidden md:block">
+            <Table>
+              <Thead><Th>Produit</Th><Th>Quantité</Th><Th>Total</Th></Thead>
+              <Tbody>
+                {sales.map((s) => (
+                  <Tr key={s.id}>
+                    <Td>{s.product_name_display}</Td>
+                    <Td>{s.quantity}</Td>
+                    <Td>{s.total_price} FCFA</Td>
+                  </Tr>
+                ))}
+                {sales.length === 0 && (
+                  <Tr><Td colSpan={3} className="text-center text-ink-muted">Aucune vente.</Td></Tr>
+                )}
+              </Tbody>
+            </Table>
+          </div>
         </div>
 
         <div className="min-w-0">
           <h2 className="mb-3 flex items-center gap-1.5 text-sm font-semibold text-ink">
             <Receipt size={15} /> Factures ({bills.length})
           </h2>
-          <Table>
-            <Thead><Th>Date</Th><Th></Th></Thead>
-            <Tbody>
-              {bills.map((b) => (
-                <Tr key={b.id}>
-                  <Td>{new Date(b.date_created).toLocaleString()}</Td>
-                  <Td>
-                    <Link to={`/final-bill/${b.id}`} className="text-xs font-medium text-brand hover:underline">
-                      Voir
-                    </Link>
-                  </Td>
-                </Tr>
-              ))}
-              {bills.length === 0 && (
-                <Tr><Td colSpan={2} className="text-center text-ink-muted">Aucune facture.</Td></Tr>
-              )}
-            </Tbody>
-          </Table>
+
+          <CardStack>
+            {bills.map((b) => (
+              <Card key={b.id} className="flex items-center justify-between p-3">
+                <p className="text-sm text-ink">{new Date(b.date_created).toLocaleString()}</p>
+                <Link to={`/final-bill/${b.id}`} className="text-xs font-medium text-brand hover:underline">
+                  Voir
+                </Link>
+              </Card>
+            ))}
+            {bills.length === 0 && <p className="text-center text-sm text-ink-muted">Aucune facture.</p>}
+          </CardStack>
+
+          <div className="hidden md:block">
+            <Table>
+              <Thead><Th>Date</Th><Th></Th></Thead>
+              <Tbody>
+                {bills.map((b) => (
+                  <Tr key={b.id}>
+                    <Td>{new Date(b.date_created).toLocaleString()}</Td>
+                    <Td>
+                      <Link to={`/final-bill/${b.id}`} className="text-xs font-medium text-brand hover:underline">
+                        Voir
+                      </Link>
+                    </Td>
+                  </Tr>
+                ))}
+                {bills.length === 0 && (
+                  <Tr><Td colSpan={2} className="text-center text-ink-muted">Aucune facture.</Td></Tr>
+                )}
+              </Tbody>
+            </Table>
+          </div>
         </div>
       </div>
     </div>

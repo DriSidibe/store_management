@@ -6,6 +6,7 @@ import { useAuth } from '../auth/AuthContext'
 import Badge from '../components/ui/Badge'
 import Button from '../components/ui/Button'
 import Card from '../components/ui/Card'
+import { CardStack } from '../components/ui/CardList'
 import { Checkbox, Field, Input } from '../components/ui/Form'
 import Modal from '../components/ui/Modal'
 import { Table, Tbody, Td, Th, Thead, Tr } from '../components/ui/Table'
@@ -115,72 +116,126 @@ export default function UsersPage() {
         </Card>
 
         <div className="min-w-0">
-          <Table>
-            <Thead>
-              <Th>Utilisateur</Th>
-              <Th>Staff</Th>
-              <Th>Superuser</Th>
-              <Th>Statut</Th>
-              <Th>Dernière connexion</Th>
-              <Th></Th>
-            </Thead>
-            <Tbody>
-              {isLoading && (
-                <Tr><Td colSpan={6} className="text-center text-ink-muted">Chargement...</Td></Tr>
-              )}
-              {data?.results.map((u) => {
-                const isSelf = u.id === me?.id
-                return (
-                  <Tr key={u.id}>
-                    <Td className="font-medium">
+          {isLoading && <p className="text-sm text-ink-muted">Chargement...</p>}
+
+          <CardStack>
+            {data?.results.map((u) => {
+              const isSelf = u.id === me?.id
+              return (
+                <Card key={u.id} className="p-3">
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <p className="truncate font-medium text-ink">
                       {u.username} {isSelf && <span className="text-xs text-ink-muted">(vous)</span>}
-                    </Td>
-                    <Td>
-                      <Checkbox checked={u.is_staff} onChange={() => toggleField(u, 'is_staff')} />
-                    </Td>
-                    <Td>
-                      <Checkbox
-                        checked={u.is_superuser}
-                        onChange={() => toggleField(u, 'is_superuser')}
-                        disabled={isSelf && u.is_superuser}
-                      />
-                    </Td>
-                    <Td>
-                      <button type="button" onClick={() => toggleField(u, 'is_active')} disabled={isSelf}>
-                        <Badge variant={u.is_active ? 'success' : 'danger'}>
-                          {u.is_active ? 'Actif' : 'Désactivé'}
-                        </Badge>
+                    </p>
+                    <button type="button" onClick={() => toggleField(u, 'is_active')} disabled={isSelf}>
+                      <Badge variant={u.is_active ? 'success' : 'danger'}>
+                        {u.is_active ? 'Actif' : 'Désactivé'}
+                      </Badge>
+                    </button>
+                  </div>
+                  <div className="mb-2 flex flex-wrap gap-4">
+                    <Checkbox label="Staff" checked={u.is_staff} onChange={() => toggleField(u, 'is_staff')} />
+                    <Checkbox
+                      label="Superuser"
+                      checked={u.is_superuser}
+                      onChange={() => toggleField(u, 'is_superuser')}
+                      disabled={isSelf && u.is_superuser}
+                    />
+                  </div>
+                  <p className="mb-2 text-xs text-ink-muted">
+                    Dernière connexion : {u.last_login ? new Date(u.last_login).toLocaleString() : 'jamais'}
+                  </p>
+                  <div className="flex justify-end gap-1.5 border-t border-border pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setResetTarget(u)}
+                      className="rounded-lg p-1.5 text-ink-secondary hover:bg-brand/10 hover:text-brand cursor-pointer"
+                    >
+                      <KeyRound size={15} />
+                    </button>
+                    {!isSelf && (
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(u)}
+                        className="rounded-lg p-1.5 text-ink-secondary hover:bg-danger/10 hover:text-danger cursor-pointer"
+                      >
+                        <Trash2 size={15} />
                       </button>
-                    </Td>
-                    <Td className="text-ink-muted">
-                      {u.last_login ? new Date(u.last_login).toLocaleString() : 'jamais'}
-                    </Td>
-                    <Td>
-                      <div className="flex justify-end gap-1.5">
-                        <button
-                          type="button"
-                          title="Réinitialiser le mot de passe"
-                          onClick={() => setResetTarget(u)}
-                          className="rounded-lg p-1.5 text-ink-secondary hover:bg-brand/10 hover:text-brand cursor-pointer"
-                        >
-                          <KeyRound size={15} />
+                    )}
+                  </div>
+                </Card>
+              )
+            })}
+          </CardStack>
+
+          <div className="hidden md:block">
+            <Table>
+              <Thead>
+                <Th>Utilisateur</Th>
+                <Th>Staff</Th>
+                <Th>Superuser</Th>
+                <Th>Statut</Th>
+                <Th>Dernière connexion</Th>
+                <Th></Th>
+              </Thead>
+              <Tbody>
+                {isLoading && (
+                  <Tr><Td colSpan={6} className="text-center text-ink-muted">Chargement...</Td></Tr>
+                )}
+                {data?.results.map((u) => {
+                  const isSelf = u.id === me?.id
+                  return (
+                    <Tr key={u.id}>
+                      <Td className="font-medium">
+                        {u.username} {isSelf && <span className="text-xs text-ink-muted">(vous)</span>}
+                      </Td>
+                      <Td>
+                        <Checkbox checked={u.is_staff} onChange={() => toggleField(u, 'is_staff')} />
+                      </Td>
+                      <Td>
+                        <Checkbox
+                          checked={u.is_superuser}
+                          onChange={() => toggleField(u, 'is_superuser')}
+                          disabled={isSelf && u.is_superuser}
+                        />
+                      </Td>
+                      <Td>
+                        <button type="button" onClick={() => toggleField(u, 'is_active')} disabled={isSelf}>
+                          <Badge variant={u.is_active ? 'success' : 'danger'}>
+                            {u.is_active ? 'Actif' : 'Désactivé'}
+                          </Badge>
                         </button>
-                        {!isSelf && (
+                      </Td>
+                      <Td className="text-ink-muted">
+                        {u.last_login ? new Date(u.last_login).toLocaleString() : 'jamais'}
+                      </Td>
+                      <Td>
+                        <div className="flex justify-end gap-1.5">
                           <button
                             type="button"
-                            onClick={() => handleDelete(u)}
-                            className="rounded-lg p-1.5 text-ink-secondary hover:bg-danger/10 hover:text-danger cursor-pointer"
+                            title="Réinitialiser le mot de passe"
+                            onClick={() => setResetTarget(u)}
+                            className="rounded-lg p-1.5 text-ink-secondary hover:bg-brand/10 hover:text-brand cursor-pointer"
                           >
-                            <Trash2 size={15} />
+                            <KeyRound size={15} />
                           </button>
-                        )}
-                      </div>
-                    </Td>
-                  </Tr>
-                )
-              })}
-            </Tbody>
-          </Table>
+                          {!isSelf && (
+                            <button
+                              type="button"
+                              onClick={() => handleDelete(u)}
+                              className="rounded-lg p-1.5 text-ink-secondary hover:bg-danger/10 hover:text-danger cursor-pointer"
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          )}
+                        </div>
+                      </Td>
+                    </Tr>
+                  )
+                })}
+              </Tbody>
+            </Table>
+          </div>
         </div>
       </div>
 

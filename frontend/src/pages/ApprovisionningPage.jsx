@@ -7,6 +7,7 @@ import {
 } from '../api/api'
 import Button from '../components/ui/Button'
 import Card from '../components/ui/Card'
+import { CardStack } from '../components/ui/CardList'
 import { Field, Input, Select } from '../components/ui/Form'
 import { Table, Tbody, Td, Th, Thead, Tr } from '../components/ui/Table'
 import { extractErrorMessage, useToast } from '../toast/ToastContext'
@@ -151,40 +152,73 @@ export default function ApprovisionningPage() {
 
           <Card>
             <h2 className="mb-3 text-sm font-semibold text-ink">En attente d'approvisionnement</h2>
-            <Table>
-              <Thead><Th>Produit</Th><Th>Quantité</Th><Th></Th></Thead>
-              <Tbody>
-                {ravitaillement?.results?.map((r) => (
-                  <Tr key={r.id}>
-                    <Td>{r.product_name_display}</Td>
-                    <Td>{r.commanded_quantity}</Td>
-                    <Td>
-                      <div className="flex justify-end gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => handlePromote(r.id)}
-                          title="Réceptionner"
-                          className="rounded-lg p-1.5 text-ink-secondary hover:bg-success/10 hover:text-success-text cursor-pointer"
-                        >
-                          <Check size={15} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(r.id)}
-                          title="Annuler"
-                          className="rounded-lg p-1.5 text-ink-secondary hover:bg-danger/10 hover:text-danger cursor-pointer"
-                        >
-                          <X size={15} />
-                        </button>
-                      </div>
-                    </Td>
-                  </Tr>
-                ))}
-                {ravitaillement?.results?.length === 0 && (
-                  <Tr><Td colSpan={3} className="text-center text-ink-muted">Rien en attente.</Td></Tr>
-                )}
-              </Tbody>
-            </Table>
+
+            <CardStack>
+              {ravitaillement?.results?.map((r) => (
+                <div key={r.id} className="flex items-center justify-between gap-2 rounded-lg border border-border p-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-ink">{r.product_name_display}</p>
+                    <p className="text-xs text-ink-muted">Quantité : {r.commanded_quantity}</p>
+                  </div>
+                  <div className="flex shrink-0 gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => handlePromote(r.id)}
+                      className="rounded-lg p-1.5 text-ink-secondary hover:bg-success/10 hover:text-success-text cursor-pointer"
+                    >
+                      <Check size={15} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(r.id)}
+                      className="rounded-lg p-1.5 text-ink-secondary hover:bg-danger/10 hover:text-danger cursor-pointer"
+                    >
+                      <X size={15} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+              {ravitaillement?.results?.length === 0 && (
+                <p className="text-center text-sm text-ink-muted">Rien en attente.</p>
+              )}
+            </CardStack>
+
+            <div className="hidden md:block">
+              <Table>
+                <Thead><Th>Produit</Th><Th>Quantité</Th><Th></Th></Thead>
+                <Tbody>
+                  {ravitaillement?.results?.map((r) => (
+                    <Tr key={r.id}>
+                      <Td>{r.product_name_display}</Td>
+                      <Td>{r.commanded_quantity}</Td>
+                      <Td>
+                        <div className="flex justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => handlePromote(r.id)}
+                            title="Réceptionner"
+                            className="rounded-lg p-1.5 text-ink-secondary hover:bg-success/10 hover:text-success-text cursor-pointer"
+                          >
+                            <Check size={15} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(r.id)}
+                            title="Annuler"
+                            className="rounded-lg p-1.5 text-ink-secondary hover:bg-danger/10 hover:text-danger cursor-pointer"
+                          >
+                            <X size={15} />
+                          </button>
+                        </div>
+                      </Td>
+                    </Tr>
+                  ))}
+                  {ravitaillement?.results?.length === 0 && (
+                    <Tr><Td colSpan={3} className="text-center text-ink-muted">Rien en attente.</Td></Tr>
+                  )}
+                </Tbody>
+              </Table>
+            </div>
           </Card>
         </div>
 
@@ -212,21 +246,37 @@ export default function ApprovisionningPage() {
 
           <Card>
             <h2 className="mb-3 text-sm font-semibold text-ink">Entrées fournisseurs</h2>
-            <Table>
-              <Thead><Th>Fournisseur</Th><Th>Téléphone</Th><Th>Date</Th></Thead>
-              <Tbody>
-                {entrances?.results?.map((en) => (
-                  <Tr key={en.id}>
-                    <Td>{en.supplier_name}</Td>
-                    <Td>{en.Suppler_tel}</Td>
-                    <Td>{new Date(en.date).toLocaleDateString()}</Td>
-                  </Tr>
-                ))}
-                {entrances?.results?.length === 0 && (
-                  <Tr><Td colSpan={3} className="text-center text-ink-muted">Aucune entrée.</Td></Tr>
-                )}
-              </Tbody>
-            </Table>
+
+            <CardStack>
+              {entrances?.results?.map((en) => (
+                <div key={en.id} className="rounded-lg border border-border p-3">
+                  <p className="text-sm font-medium text-ink">{en.supplier_name}</p>
+                  <p className="text-xs text-ink-muted">{en.Suppler_tel || '-'}</p>
+                  <p className="text-xs text-ink-muted">{new Date(en.date).toLocaleDateString()}</p>
+                </div>
+              ))}
+              {entrances?.results?.length === 0 && (
+                <p className="text-center text-sm text-ink-muted">Aucune entrée.</p>
+              )}
+            </CardStack>
+
+            <div className="hidden md:block">
+              <Table>
+                <Thead><Th>Fournisseur</Th><Th>Téléphone</Th><Th>Date</Th></Thead>
+                <Tbody>
+                  {entrances?.results?.map((en) => (
+                    <Tr key={en.id}>
+                      <Td>{en.supplier_name}</Td>
+                      <Td>{en.Suppler_tel}</Td>
+                      <Td>{new Date(en.date).toLocaleDateString()}</Td>
+                    </Tr>
+                  ))}
+                  {entrances?.results?.length === 0 && (
+                    <Tr><Td colSpan={3} className="text-center text-ink-muted">Aucune entrée.</Td></Tr>
+                  )}
+                </Tbody>
+              </Table>
+            </div>
           </Card>
         </div>
       </div>

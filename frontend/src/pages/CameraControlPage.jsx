@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { createCamera, deleteCamera, listCameras, updateCamera } from '../api/api'
 import Button from '../components/ui/Button'
 import Card from '../components/ui/Card'
+import { CardStack } from '../components/ui/CardList'
 import { Checkbox, Field, Input, Select } from '../components/ui/Form'
 import { Table, Tbody, Td, Th, Thead, Tr } from '../components/ui/Table'
 import { useConfirm } from '../confirm/ConfirmContext'
@@ -127,36 +128,65 @@ export default function CameraControlPage() {
         </Card>
 
         <div className="min-w-0">
-          <Table>
-            <Thead><Th>Nom</Th><Th>IP</Th><Th>Résolution</Th><Th></Th></Thead>
-            <Tbody>
-              {data?.results.map((c) => (
-                <Tr key={c.id}>
-                  <Td>{c.name}</Td>
-                  <Td>{c.ip_address}</Td>
-                  <Td>{c.resolution}</Td>
-                  <Td>
-                    <div className="flex justify-end gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => startEdit(c)}
-                        className="rounded-lg p-1.5 text-ink-secondary hover:bg-brand/10 hover:text-brand cursor-pointer"
-                      >
-                        <Pencil size={15} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(c.id)}
-                        className="rounded-lg p-1.5 text-ink-secondary hover:bg-danger/10 hover:text-danger cursor-pointer"
-                      >
-                        <Trash2 size={15} />
-                      </button>
-                    </div>
-                  </Td>
-                </Tr>
-              ))}
-            </Tbody>
-          </Table>
+          <CardStack>
+            {data?.results.map((c) => (
+              <div key={c.id} className="flex items-center justify-between gap-2 rounded-lg border border-border p-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-ink">{c.name}</p>
+                  <p className="text-xs text-ink-muted">{c.ip_address} · {c.resolution}</p>
+                </div>
+                <div className="flex shrink-0 gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => startEdit(c)}
+                    className="rounded-lg p-1.5 text-ink-secondary hover:bg-brand/10 hover:text-brand cursor-pointer"
+                  >
+                    <Pencil size={15} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(c.id)}
+                    className="rounded-lg p-1.5 text-ink-secondary hover:bg-danger/10 hover:text-danger cursor-pointer"
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </CardStack>
+
+          <div className="hidden md:block">
+            <Table>
+              <Thead><Th>Nom</Th><Th>IP</Th><Th>Résolution</Th><Th></Th></Thead>
+              <Tbody>
+                {data?.results.map((c) => (
+                  <Tr key={c.id}>
+                    <Td>{c.name}</Td>
+                    <Td>{c.ip_address}</Td>
+                    <Td>{c.resolution}</Td>
+                    <Td>
+                      <div className="flex justify-end gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => startEdit(c)}
+                          className="rounded-lg p-1.5 text-ink-secondary hover:bg-brand/10 hover:text-brand cursor-pointer"
+                        >
+                          <Pencil size={15} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(c.id)}
+                          className="rounded-lg p-1.5 text-ink-secondary hover:bg-danger/10 hover:text-danger cursor-pointer"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+                    </Td>
+                  </Tr>
+                ))}
+              </Tbody>
+            </Table>
+          </div>
         </div>
       </div>
     </div>

@@ -1,9 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
-import { AlertTriangle, Truck } from 'lucide-react'
+import { AlertTriangle, Package, Truck } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { listLowStockProducts } from '../api/api'
 import Badge from '../components/ui/Badge'
+import Card from '../components/ui/Card'
+import { CardStack } from '../components/ui/CardList'
 import EmptyState from '../components/ui/EmptyState'
 import { TableSkeleton } from '../components/ui/Skeleton'
 import { Table, Tbody, Td, Th, Thead, Tr } from '../components/ui/Table'
@@ -31,35 +33,65 @@ export default function LowStockPage() {
         <EmptyState icon={AlertTriangle} title="Aucun produit en stock faible" description="Tous les produits sont au-dessus de leur seuil d'alerte." />
       ) : (
         <>
-          <Table>
-            <Thead>
-              <Th>Code</Th>
-              <Th>Nom</Th>
-              <Th>Quantité</Th>
-              <Th>Seuil</Th>
-              <Th></Th>
-            </Thead>
-            <Tbody>
-              {data?.results.map((p) => (
-                <Tr key={p.product_id}>
-                  <Td className="font-mono text-xs text-ink-secondary">{p.product_id}</Td>
-                  <Td>{p.product_name}</Td>
-                  <Td>
-                    <Badge variant="danger">{p.product_quantity}</Badge>
-                  </Td>
-                  <Td>{p.low_stock_threshold}</Td>
-                  <Td>
-                    <Link
-                      to="/approvioning"
-                      className="flex items-center justify-end gap-1.5 text-xs font-medium text-brand hover:underline"
-                    >
-                      <Truck size={13} /> Réapprovisionner
-                    </Link>
-                  </Td>
-                </Tr>
-              ))}
-            </Tbody>
-          </Table>
+          <CardStack>
+            {data?.results.map((p) => (
+              <Card key={p.product_id} className="flex items-center gap-3 p-3">
+                {p.product_image ? (
+                  <img src={p.product_image} alt="" className="h-12 w-12 shrink-0 rounded-lg object-cover" />
+                ) : (
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-ink/5 text-ink-muted">
+                    <Package size={18} />
+                  </div>
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-ink">{p.product_name}</p>
+                  <p className="font-mono text-xs text-ink-muted">{p.product_id}</p>
+                  <div className="mt-1 flex items-center gap-2">
+                    <Badge variant="danger">Stock: {p.product_quantity}</Badge>
+                    <span className="text-xs text-ink-muted">seuil {p.low_stock_threshold}</span>
+                  </div>
+                </div>
+                <Link
+                  to="/approvioning"
+                  className="flex shrink-0 items-center gap-1 rounded-lg border border-border p-2 text-brand"
+                >
+                  <Truck size={16} />
+                </Link>
+              </Card>
+            ))}
+          </CardStack>
+
+          <div className="hidden md:block">
+            <Table>
+              <Thead>
+                <Th>Code</Th>
+                <Th>Nom</Th>
+                <Th>Quantité</Th>
+                <Th>Seuil</Th>
+                <Th></Th>
+              </Thead>
+              <Tbody>
+                {data?.results.map((p) => (
+                  <Tr key={p.product_id}>
+                    <Td className="font-mono text-xs text-ink-secondary">{p.product_id}</Td>
+                    <Td>{p.product_name}</Td>
+                    <Td>
+                      <Badge variant="danger">{p.product_quantity}</Badge>
+                    </Td>
+                    <Td>{p.low_stock_threshold}</Td>
+                    <Td>
+                      <Link
+                        to="/approvioning"
+                        className="flex items-center justify-end gap-1.5 text-xs font-medium text-brand hover:underline"
+                      >
+                        <Truck size={13} /> Réapprovisionner
+                      </Link>
+                    </Td>
+                  </Tr>
+                ))}
+              </Tbody>
+            </Table>
+          </div>
 
           {totalPages > 1 && (
             <div className="mt-4 flex flex-wrap justify-center gap-1">

@@ -3,6 +3,8 @@ import { History } from 'lucide-react'
 import { useState } from 'react'
 import { listActivityLog } from '../api/api'
 import Badge from '../components/ui/Badge'
+import Card from '../components/ui/Card'
+import { CardStack } from '../components/ui/CardList'
 import EmptyState from '../components/ui/EmptyState'
 import { Select } from '../components/ui/Form'
 import { TableSkeleton } from '../components/ui/Skeleton'
@@ -51,24 +53,45 @@ export default function ActivityLogPage() {
         <EmptyState icon={History} title="Aucune activité enregistrée" />
       ) : (
         <>
-          <Table>
-            <Thead><Th>Date</Th><Th>Utilisateur</Th><Th>Action</Th><Th>Objet</Th><Th>Détails</Th></Thead>
-            <Tbody>
-              {data?.results.map((entry) => (
-                <Tr key={entry.id}>
-                  <Td className="text-ink-muted">{new Date(entry.timestamp).toLocaleString()}</Td>
-                  <Td>{entry.username || 'système'}</Td>
-                  <Td>
-                    <Badge variant={ACTION_VARIANTS[entry.action] || 'neutral'}>
-                      {entry.action} {entry.model_name}
-                    </Badge>
-                  </Td>
-                  <Td>{entry.object_repr}</Td>
-                  <Td className="text-ink-muted">{entry.details || '-'}</Td>
-                </Tr>
-              ))}
-            </Tbody>
-          </Table>
+          <CardStack>
+            {data?.results.map((entry) => (
+              <Card key={entry.id} className="p-3">
+                <div className="mb-1.5 flex items-center justify-between gap-2">
+                  <Badge variant={ACTION_VARIANTS[entry.action] || 'neutral'}>
+                    {entry.action} {entry.model_name}
+                  </Badge>
+                  <span className="shrink-0 text-xs text-ink-muted">
+                    {new Date(entry.timestamp).toLocaleString()}
+                  </span>
+                </div>
+                <p className="truncate text-sm text-ink">{entry.object_repr}</p>
+                <p className="text-xs text-ink-muted">
+                  {entry.username || 'système'} {entry.details && `· ${entry.details}`}
+                </p>
+              </Card>
+            ))}
+          </CardStack>
+
+          <div className="hidden md:block">
+            <Table>
+              <Thead><Th>Date</Th><Th>Utilisateur</Th><Th>Action</Th><Th>Objet</Th><Th>Détails</Th></Thead>
+              <Tbody>
+                {data?.results.map((entry) => (
+                  <Tr key={entry.id}>
+                    <Td className="text-ink-muted">{new Date(entry.timestamp).toLocaleString()}</Td>
+                    <Td>{entry.username || 'système'}</Td>
+                    <Td>
+                      <Badge variant={ACTION_VARIANTS[entry.action] || 'neutral'}>
+                        {entry.action} {entry.model_name}
+                      </Badge>
+                    </Td>
+                    <Td>{entry.object_repr}</Td>
+                    <Td className="text-ink-muted">{entry.details || '-'}</Td>
+                  </Tr>
+                ))}
+              </Tbody>
+            </Table>
+          </div>
 
           {totalPages > 1 && (
             <div className="mt-4 flex flex-wrap justify-center gap-1">
