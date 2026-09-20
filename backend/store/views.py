@@ -169,6 +169,15 @@ class SellViewSet(viewsets.ModelViewSet):
         name = sale.product.product_name if sale.product else sale.product_name
         log_activity(self.request, 'sold', 'Sell', f"{name} x{sale.quantity}", f"{sale.total_price} FCFA")
 
+    def perform_update(self, serializer):
+        had_product_id = serializer.instance.product_id
+        sale = serializer.save()
+        name = sale.product.product_name if sale.product else sale.product_name
+        if 'product' in serializer.validated_data and sale.product_id != had_product_id:
+            log_activity(self.request, 'updated', 'Sell', f"{name} x{sale.quantity}", "produit associé/changé")
+        else:
+            log_activity(self.request, 'updated', 'Sell', f"{name} x{sale.quantity}")
+
     def perform_destroy(self, instance):
         name = instance.product.product_name if instance.product else instance.product_name
         log_activity(self.request, 'deleted', 'Sell', f"{name} x{instance.quantity}")

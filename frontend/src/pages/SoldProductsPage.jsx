@@ -1,13 +1,15 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Download, Printer, PlusCircle, Receipt, Trash2 } from 'lucide-react'
+import { Download, Link2, Printer, PlusCircle, Receipt, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { dailySales, deleteSale, downloadReport, promoteSaleToProduct } from '../api/api'
+import { dailySales, deleteSale, downloadReport, promoteSaleToProduct, updateSale } from '../api/api'
+import ProductAutocomplete from '../components/ProductAutocomplete'
 import Button from '../components/ui/Button'
 import Card from '../components/ui/Card'
 import { CardStack, DataRow } from '../components/ui/CardList'
 import EmptyState from '../components/ui/EmptyState'
 import { Input } from '../components/ui/Form'
+import Modal from '../components/ui/Modal'
 import { TableSkeleton } from '../components/ui/Skeleton'
 import { Table, Tbody, Td, Th, Thead, Tr } from '../components/ui/Table'
 import { useConfirm } from '../confirm/ConfirmContext'
@@ -20,6 +22,7 @@ export default function SoldProductsPage() {
   const confirm = useConfirm()
   const queryClient = useQueryClient()
   const [date, setDate] = useState(today())
+  const [linkTarget, setLinkTarget] = useState(null)
 
   const { data, isLoading } = useQuery({
     queryKey: ['sales-daily', date],
@@ -43,6 +46,17 @@ export default function SoldProductsPage() {
     try {
       await promoteSaleToProduct(id)
       toast.success('Produit créé à partir de la vente.')
+      invalidate()
+    } catch (err) {
+      toast.error(extractErrorMessage(err))
+    }
+  }
+
+  const handleLinkProduct = async (product) => {
+    try {
+      await updateSale(linkTarget.id, { product: product.id })
+      toast.success(`Vente associée à ${product.product_name}.`)
+      setLinkTarget(null)
       invalidate()
     } catch (err) {
       toast.error(extractErrorMessage(err))
@@ -93,6 +107,14 @@ export default function SoldProductsPage() {
                       >
                         <Printer size={15} />
                       </Link>
+                      <button
+                        type="button"
+                        onClick={() => setLinkTarget(s)}
+                        title="Associer à un produit du catalogue"
+                        className="rounded-lg p-1.5 text-ink-secondary hover:bg-brand/10 hover:text-brand cursor-pointer"
+                      >
+                        <Link2 size={15} />
+                      </button>
                       {!s.product && (
                         <button
                           type="button"
@@ -143,6 +165,14 @@ export default function SoldProductsPage() {
                             >
                               <Printer size={15} />
                             </Link>
+                            <button
+                              type="button"
+                              onClick={() => setLinkTarget(s)}
+                              title="Associer à un produit du catalogue"
+                              className="rounded-lg p-1.5 text-ink-secondary hover:bg-brand/10 hover:text-brand cursor-pointer"
+                            >
+                              <Link2 size={15} />
+                            </button>
                             {!s.product && (
                               <button
                                 type="button"
@@ -171,6 +201,22 @@ export default function SoldProductsPage() {
           )}
         </>
       )}
+
+      <Modal
+        open={!!linkTarget}
+        onClose={() => setLinkTarget(null)}
+        title={`Associer "${linkTarget?.product_name_display}" à un produit du catalogue`}
+      >
+        <p className="mb-3 text-xs text-ink-muted">
+          Recherche le produit déjà enregistré correspondant à cette vente. Cela mettra aussi à jour
+          le calcul de bénéfice de cette vente.
+        </p>
+        <ProductAutocomplete
+          placeholder="Tape le nom ou le code du produit..."
+          onSelect={handleLinkProduct}
+          autoFocus
+        />
+      </Modal>
     </div>
   )
 }
