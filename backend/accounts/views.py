@@ -76,5 +76,6 @@ class UserViewSet(viewsets.ModelViewSet):
     def perform_destroy(self, instance):
         if instance == self.request.user:
             raise ValidationError("Vous ne pouvez pas supprimer votre propre compte.")
-        log_activity(self.request, 'deleted', 'User', instance.username)
-        instance.delete()
+        log_activity(self.request, 'deactivated', 'User', instance.username)
+        instance.is_active = False
+        instance.save(update_fields=['is_active'])

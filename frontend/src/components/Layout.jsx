@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import {
-  AlertTriangle, BarChart3, Camera, FileText, History, LayoutGrid, LogOut, Menu,
+  AlertTriangle, BarChart3, Camera, ExternalLink, FileText, History, LayoutGrid, LogOut, Menu,
   Moon, PackagePlus, PenSquare, Receipt, ShoppingCart, Sun, Truck, UserCog, Users,
   Video, X,
 } from 'lucide-react'
@@ -123,6 +123,15 @@ export default function Layout() {
           </>
         )}
       </nav>
+
+      <a
+        href="/vitrine"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-ink-secondary hover:bg-ink/5 hover:text-ink"
+      >
+        <ExternalLink size={17} /> Voir la vitrine
+      </a>
 
       <button
         type="button"

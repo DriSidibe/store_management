@@ -1,7 +1,7 @@
 from rest_framework import serializers
 
 from .models import (
-    ActivityLog, Bill, BillItems, Customer, Product, Ravitaillement, Sell, Shelf,
+    ActivityLog, Bill, BillItems, Category, Customer, Product, Ravitaillement, Sell, Shelf,
     SupplieEntrance, Unity,
 )
 from .utils import build_product_id, generate_product_id, process_product_image
@@ -34,8 +34,18 @@ class ShelfSerializer(serializers.ModelSerializer):
         fields = ['id', 'name']
 
 
+class CategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Category
+        fields = ['id', 'name']
+
+
 class ProductSerializer(serializers.ModelSerializer):
     product_unity_name = serializers.CharField(source='product_unity.name', read_only=True)
+    product_category_name = serializers.CharField(source='product_category.name', read_only=True, default=None)
+    # Free-text category name from the form/CSV: looked up or created by
+    # name, so the catalog's category list grows organically.
+    category = serializers.CharField(write_only=True, required=False, allow_blank=True)
     # Only used on create: the two segments of the composite product_id
     # that aren't the fixed "AM" prefix or the random sequence number.
     product_id_etg = serializers.CharField(write_only=True, required=False)
@@ -46,6 +56,7 @@ class ProductSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'product_id', 'product_id_etg', 'product_id_cas', 'product_name',
             'product_description', 'product_unity', 'product_unity_name',
+            'product_category_name', 'category',
             'product_quantity', 'product_company', 'product_cp', 'product_sp',
             'product_image', 'low_stock_threshold',
         ]
@@ -62,14 +73,20 @@ class ProductSerializer(serializers.ModelSerializer):
         return value
 
     def validate(self, attrs):
-        if self.instance is None and not attrs.get('product_id_etg'):
-            raise serializers.ValidationError("Les informations sont incomplètes.")
+        if self.instance is None:
+            if not attrs.get('product_id_etg'):
+                raise serializers.ValidationError("Les informations sont incomplètes.")
+            if not attrs.get('category', '').strip():
+                raise serializers.ValidationError({'category': "La catégorie du produit est obligatoire."})
         return attrs
 
     def create(self, validated_data):
         etage = validated_data.pop('product_id_etg')
         casier = validated_data.pop('product_id_cas', '')
         image = validated_data.pop('product_image', None)
+        category_name = validated_data.pop('category', '').strip()
+        if category_name:
+            validated_data['product_category'], _ = Category.objects.get_or_create(name=category_name)
         validated_data['product_name'] = validated_data['product_name'].title()
         validated_data['product_id'] = generate_product_id(etage, casier)
         product = Product.objects.create(**validated_data)
@@ -81,6 +98,12 @@ class ProductSerializer(serializers.ModelSerializer):
         etage = validated_data.pop('product_id_etg', None)
         casier = validated_data.pop('product_id_cas', None)
         image = validated_data.pop('product_image', None)
+        category_name = validated_data.pop('category', None)
+        if category_name is not None:
+            category_name = category_name.strip()
+            validated_data['product_category'] = (
+                Category.objects.get_or_create(name=category_name)[0] if category_name else None
+            )
         if 'product_name' in validated_data:
             validated_data['product_name'] = validated_data['product_name'].title()
         if etage is not None or casier is not None:
@@ -96,19 +119,42 @@ class ProductSerializer(serializers.ModelSerializer):
         return instance
 
 
+class PublicProductSerializer(serializers.ModelSerializer):
+    """Read-only, safe-for-the-public view of a product: no cost price, no
+    exact stock count, only an in/out-of-stock flag."""
+    product_unity_name = serializers.CharField(source='product_unity.name', read_only=True)
+    category_name = serializers.CharField(source='product_category.name', read_only=True, default=None)
+    in_stock = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Product
+        fields = [
+            'product_id', 'product_name', 'product_description', 'product_company',
+            'product_unity_name', 'category_name', 'product_sp', 'product_image', 'in_stock',
+        ]
+
+    def get_in_stock(self, obj):
+        return obj.product_quantity > 0
+
+
 class SellSerializer(serializers.ModelSerializer):
     product_name_display = serializers.SerializerMethodField(read_only=True)
+    sold_by_username = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Sell
         fields = [
             'id', 'product', 'product_name', 'product_name_display', 'unit_price',
             'total_price', 'quantity', 'sell_date', 'customer_name', 'product_image',
+            'sold_by_username',
         ]
         read_only_fields = ['unit_price']
 
     def get_product_name_display(self, obj):
         return obj.product.product_name if obj.product else obj.product_name
+
+    def get_sold_by_username(self, obj):
+        return obj.sold_by.username if obj.sold_by else None
 
     def create(self, validated_data):
         image = validated_data.pop('product_image', None)

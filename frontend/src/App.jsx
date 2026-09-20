@@ -24,12 +24,14 @@ import ReceiptPage from './pages/ReceiptPage'
 import SellProductPage from './pages/SellProductPage'
 import SignupPage from './pages/SignupPage'
 import SoldProductsPage from './pages/SoldProductsPage'
+import StorefrontPage from './pages/StorefrontPage'
 import UpdateProductPage from './pages/UpdateProductPage'
 import UsersPage from './pages/UsersPage'
 
 export default function App() {
   return (
     <Routes>
+      <Route path="/vitrine" element={<StorefrontPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignupPage />} />
 

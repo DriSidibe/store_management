@@ -6,6 +6,7 @@ from . import views
 router = DefaultRouter()
 router.register('units', views.UnityViewSet, basename='unity')
 router.register('shelves', views.ShelfViewSet, basename='shelf')
+router.register('categories', views.CategoryViewSet, basename='category')
 router.register('products', views.ProductViewSet, basename='product')
 router.register('sales', views.SellViewSet, basename='sale')
 router.register('ravitaillement', views.RavitaillementViewSet, basename='ravitaillement')
@@ -21,4 +22,7 @@ urlpatterns = [
     path('metrics/top-products/', views.TopProductsView.as_view(), name='top-products'),
     path('search/', views.GlobalSearchView.as_view(), name='search'),
     path('reports/<str:target>/', views.ReportView.as_view(), name='report'),
+    path('public/products/', views.PublicProductListView.as_view(), name='public-products'),
+    path('public/products/companies/', views.PublicProductCompaniesView.as_view(), name='public-product-companies'),
+    path('public/products/categories/', views.PublicProductCategoriesView.as_view(), name='public-product-categories'),
 ]

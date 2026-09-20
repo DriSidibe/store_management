@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
-import { getProduct, listShelves, listUnits, updateProduct } from '../api/api'
+import { getProduct, listCategories, listShelves, listUnits, updateProduct } from '../api/api'
 import ProductAutocomplete from '../components/ProductAutocomplete'
 import Button from '../components/ui/Button'
 import Card from '../components/ui/Card'
@@ -16,6 +16,7 @@ function toForm(p) {
     product_name: p.product_name,
     product_description: p.product_description,
     product_unity: p.product_unity,
+    category: p.category_name || '',
     product_quantity: p.product_quantity,
     product_company: p.product_company,
     product_cp: p.product_cp,
@@ -29,6 +30,7 @@ export default function UpdateProductPage() {
   const location = useLocation()
   const { data: shelves } = useQuery({ queryKey: ['shelves'], queryFn: listShelves })
   const { data: units } = useQuery({ queryKey: ['units'], queryFn: listUnits })
+  const { data: categories } = useQuery({ queryKey: ['categories'], queryFn: listCategories })
 
   const [product, setProduct] = useState(null)
   const [form, setForm] = useState(null)
@@ -133,6 +135,20 @@ export default function UpdateProductPage() {
                 <Input value={form.product_company} onChange={setField('product_company')} />
               </Field>
             </div>
+
+            <Field label="Catégorie" hint="Électricité, maçonnerie, plomberie... tape une nouvelle catégorie si besoin.">
+              <Input
+                list="category-suggestions"
+                value={form.category}
+                onChange={setField('category')}
+                placeholder="Ex : Électricité"
+              />
+              <datalist id="category-suggestions">
+                {categories?.results?.map((c) => (
+                  <option key={c.id} value={c.name} />
+                ))}
+              </datalist>
+            </Field>
 
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
               <Field label="Quantité">

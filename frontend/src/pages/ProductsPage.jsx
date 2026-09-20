@@ -6,9 +6,10 @@ import { deleteProduct, downloadReport, importProductsCsv, listProducts } from '
 import { useAuth } from '../auth/AuthContext'
 import Badge from '../components/ui/Badge'
 import Button from '../components/ui/Button'
-import { CardGrid } from '../components/ui/CardList'
+import { CardGrid, DataRow } from '../components/ui/CardList'
 import EmptyState from '../components/ui/EmptyState'
 import { Input } from '../components/ui/Form'
+import Modal from '../components/ui/Modal'
 import { TableSkeleton } from '../components/ui/Skeleton'
 import { Table, Tbody, Td, Th, Thead, Tr } from '../components/ui/Table'
 import { useConfirm } from '../confirm/ConfirmContext'
@@ -25,6 +26,7 @@ export default function ProductsPage() {
   const [page, setPage] = useState(1)
   const [importing, setImporting] = useState(false)
   const importInputRef = useRef(null)
+  const [detailProduct, setDetailProduct] = useState(null)
 
   const { data, isLoading } = useQuery({
     queryKey: ['products', debouncedSearch, page],
@@ -119,7 +121,11 @@ export default function ProductsPage() {
             {data?.results.map((p) => {
               const isLow = p.product_quantity <= p.low_stock_threshold
               return (
-                <div key={p.product_id} className="overflow-hidden rounded-xl border border-border bg-surface">
+                <div
+                  key={p.product_id}
+                  onClick={() => setDetailProduct(p)}
+                  className="cursor-pointer overflow-hidden rounded-xl border border-border bg-surface"
+                >
                   <div className="relative flex aspect-square items-center justify-center bg-ink/5">
                     {p.product_image ? (
                       <img src={p.product_image} alt="" className="h-full w-full object-cover" />
@@ -146,13 +152,14 @@ export default function ProductsPage() {
                         <Link
                           to="/update-product"
                           state={{ productId: p.product_id }}
+                          onClick={(e) => e.stopPropagation()}
                           className="flex flex-1 items-center justify-center rounded-lg p-1.5 text-ink-secondary hover:bg-ink/5 hover:text-brand"
                         >
                           <Pencil size={14} />
                         </Link>
                         <button
                           type="button"
-                          onClick={() => handleDelete(p.product_id)}
+                          onClick={(e) => { e.stopPropagation(); handleDelete(p.product_id) }}
                           className="flex flex-1 items-center justify-center rounded-lg p-1.5 text-ink-secondary hover:bg-danger/10 hover:text-danger cursor-pointer"
                         >
                           <Trash2 size={14} />
@@ -182,7 +189,7 @@ export default function ProductsPage() {
                 {data?.results.map((p) => {
                   const isLow = p.product_quantity <= p.low_stock_threshold
                   return (
-                    <Tr key={p.product_id}>
+                    <Tr key={p.product_id} onClick={() => setDetailProduct(p)} className="cursor-pointer">
                       <Td>
                         {p.product_image ? (
                           <img src={p.product_image} alt="" className="h-10 w-10 rounded-lg object-cover" />
@@ -205,7 +212,7 @@ export default function ProductsPage() {
                       <Td>{p.product_sp}</Td>
                       {user?.is_staff && (
                         <Td>
-                          <div className="flex justify-end gap-1.5">
+                          <div className="flex justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
                             <Link
                               to="/update-product"
                               state={{ productId: p.product_id }}
@@ -248,6 +255,54 @@ export default function ProductsPage() {
           ))}
         </div>
       )}
+
+      <Modal
+        open={!!detailProduct}
+        onClose={() => setDetailProduct(null)}
+        title={detailProduct?.product_name}
+      >
+        {detailProduct && (
+          <div>
+            <div className="mb-4 flex items-center gap-3">
+              {detailProduct.product_image ? (
+                <img src={detailProduct.product_image} alt="" className="h-20 w-20 shrink-0 rounded-lg object-cover" />
+              ) : (
+                <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-lg bg-ink/5 text-ink-muted">
+                  <Package size={24} />
+                </div>
+              )}
+              <div className="min-w-0">
+                <p className="truncate font-medium text-ink">{detailProduct.product_name}</p>
+                <p className="font-mono text-xs text-ink-muted">{detailProduct.product_id}</p>
+                {detailProduct.product_quantity <= detailProduct.low_stock_threshold && (
+                  <Badge variant="danger" className="mt-1">Stock faible</Badge>
+                )}
+              </div>
+            </div>
+
+            {detailProduct.product_description && (
+              <p className="mb-3 text-sm text-ink-secondary">{detailProduct.product_description}</p>
+            )}
+
+            <DataRow label="Société" value={detailProduct.product_company || '-'} />
+            <DataRow label="Unité" value={detailProduct.product_unity_name || '-'} />
+            <DataRow label="Quantité en stock" value={detailProduct.product_quantity} />
+            <DataRow label="Seuil stock faible" value={detailProduct.low_stock_threshold} />
+            <DataRow label="Prix d'achat" value={`${detailProduct.product_cp} FCFA`} />
+            <DataRow label="Prix de vente" value={`${detailProduct.product_sp} FCFA`} />
+
+            {user?.is_staff && (
+              <div className="mt-4 flex justify-end">
+                <Link to="/update-product" state={{ productId: detailProduct.product_id }}>
+                  <Button variant="outline">
+                    <Pencil size={15} /> Modifier
+                  </Button>
+                </Link>
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
     </div>
   )
 }

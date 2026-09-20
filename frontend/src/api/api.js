@@ -13,6 +13,7 @@ export function toFormData(obj) {
 
 export const listUnits = () => client.get('/units/').then((r) => r.data)
 export const listShelves = () => client.get('/shelves/').then((r) => r.data)
+export const listCategories = () => client.get('/categories/').then((r) => r.data)
 
 // --- Products ---------------------------------------------------------------
 
@@ -29,6 +30,15 @@ export const deleteProduct = (productId) => client.delete(`/products/${productId
 export const importProductsCsv = (file) =>
   client.post('/products/import-csv/', toFormData({ file })).then((r) => r.data)
 
+// --- Public storefront (no auth) -------------------------------------------
+
+export const listPublicProducts = (params) =>
+  client.get('/public/products/', { params }).then((r) => r.data)
+export const listPublicProductCompanies = () =>
+  client.get('/public/products/companies/').then((r) => r.data)
+export const listPublicProductCategories = () =>
+  client.get('/public/products/categories/').then((r) => r.data)
+
 // --- Sales --------------------------------------------------------------
 
 export const listSales = (params) => client.get('/sales/', { params }).then((r) => r.data)
@@ -39,8 +49,8 @@ export const createSale = (data) => client.post('/sales/', toFormData(data)).the
 export const updateSale = (id, data) =>
   client.patch(`/sales/${id}/`, toFormData(data)).then((r) => r.data)
 export const deleteSale = (id) => client.delete(`/sales/${id}/`)
-export const promoteSaleToProduct = (id) =>
-  client.post(`/sales/${id}/promote-to-product/`).then((r) => r.data)
+export const promoteSaleToProduct = (id, data) =>
+  client.post(`/sales/${id}/promote-to-product/`, toFormData(data)).then((r) => r.data)
 
 // --- Approvisionnement ----------------------------------------------------
 
@@ -94,8 +104,8 @@ export const fetchTopProducts = (limit = 5) =>
 
 export const globalSearch = (q) => client.get('/search/', { params: { q } }).then((r) => r.data)
 
-export async function downloadReport(target, format = 'pdf') {
-  const params = format === 'csv' ? { export: 'csv' } : {}
+export async function downloadReport(target, format = 'pdf', extraParams = {}) {
+  const params = format === 'csv' ? { ...extraParams, export: 'csv' } : extraParams
   const response = await client.get(`/reports/${target}/`, { params, responseType: 'blob' })
   const url = URL.createObjectURL(response.data)
   const link = document.createElement('a')
@@ -105,6 +115,31 @@ export async function downloadReport(target, format = 'pdf') {
   link.click()
   link.remove()
   URL.revokeObjectURL(url)
+}
+
+/** Loads the PDF report into a hidden iframe and opens the browser's print
+ * dialog directly - more reliable than opening a new tab, which modern
+ * Chromium blocks from navigating to a blob: URL created by the opener. */
+export async function printReport(target, extraParams = {}) {
+  const response = await client.get(`/reports/${target}/`, { params: extraParams, responseType: 'blob' })
+  const url = URL.createObjectURL(response.data)
+  const iframe = document.createElement('iframe')
+  iframe.style.position = 'fixed'
+  iframe.style.right = '0'
+  iframe.style.bottom = '0'
+  iframe.style.width = '0'
+  iframe.style.height = '0'
+  iframe.style.border = '0'
+  iframe.src = url
+  document.body.appendChild(iframe)
+  iframe.onload = () => {
+    iframe.contentWindow?.focus()
+    iframe.contentWindow?.print()
+  }
+  setTimeout(() => {
+    iframe.remove()
+    URL.revokeObjectURL(url)
+  }, 60000)
 }
 
 // --- Users & permissions -----------------------------------------------------

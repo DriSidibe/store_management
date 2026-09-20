@@ -1,9 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
-import { AlertTriangle, Package, Truck } from 'lucide-react'
+import { AlertTriangle, Download, Package, Truck } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { listLowStockProducts } from '../api/api'
+import { downloadReport, listLowStockProducts } from '../api/api'
 import Badge from '../components/ui/Badge'
+import Button from '../components/ui/Button'
 import Card from '../components/ui/Card'
 import { CardStack } from '../components/ui/CardList'
 import EmptyState from '../components/ui/EmptyState'
@@ -22,9 +23,19 @@ export default function LowStockPage() {
 
   return (
     <div>
-      <div className="mb-5 flex items-center gap-2">
-        <AlertTriangle className="text-danger" size={20} />
-        <h1 className="text-xl font-semibold text-ink">Produits en stock faible</h1>
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <AlertTriangle className="text-danger" size={20} />
+          <h1 className="text-xl font-semibold text-ink">Produits en stock faible</h1>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={() => downloadReport('produits', 'pdf', { low_stock: 1 })}>
+            <Download size={15} /> PDF
+          </Button>
+          <Button variant="outline" onClick={() => downloadReport('produits', 'csv', { low_stock: 1 })}>
+            <Download size={15} /> CSV
+          </Button>
+        </div>
       </div>
 
       {isLoading ? (
