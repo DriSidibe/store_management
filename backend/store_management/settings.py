@@ -24,7 +24,7 @@ SECRET_KEY = env('SECRET_KEY', default='django-insecure-dev-key-change-me')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env('DEBUG')
 
-ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['127.0.0.1', 'localhost'])
+ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['127.0.0.1', 'localhost', 'adm.drissasidibe.tech'])
 
 # Application definition
 
@@ -61,6 +61,7 @@ CORS_ALLOWED_ORIGINS = env.list('CORS_ALLOWED_ORIGINS', default=[
     "http://127.0.0.1:8000",
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+    "http://adm.drissasidibe.tech",
 ])
 
 REST_FRAMEWORK = {
