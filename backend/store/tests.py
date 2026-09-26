@@ -257,3 +257,44 @@ class SaleCancelPermissionTests(APITestCase):
 
     def test_admin_can_cancel_any_sale(self):
         self.assertEqual(self.cancel_as(User.objects.create_superuser('admin', password='x')), 204)
+
+
+class SalesPeriodTests(APITestCase):
+    def setUp(self):
+        self.client.force_authenticate(User.objects.create_user('vendeur', password='x'))
+        for day, price in [('2026-09-10', 100), ('2026-09-12', 200), ('2026-09-15', 400), ('2026-09-20', 800)]:
+            Sell.objects.create(product_name='Clou', quantity=1, total_price=price, sell_date=f'{day}T10:00Z')
+
+    def get(self, **params):
+        return self.client.get('/api/sales/daily/', params)
+
+    def test_period_includes_both_ends(self):
+        response = self.get(start='2026-09-12', end='2026-09-15')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data['sales']), 2)
+        self.assertEqual(float(response.data['total']), 600)
+        self.assertEqual((response.data['start'], response.data['end']), ('2026-09-12', '2026-09-15'))
+
+    def test_single_date_still_works(self):
+        response = self.get(date='2026-09-20')
+
+        self.assertEqual([float(s['total_price']) for s in response.data['sales']], [800])
+
+    def test_invalid_or_reversed_period_is_a_clear_400(self):
+        self.assertEqual(self.get(start='2026-09-15', end='2026-09-12').status_code, 400)
+        self.assertEqual(self.get(start='15/09/2026', end='2026-09-20').status_code, 400)
+
+    def test_running_profit_is_cumulative_over_the_period(self):
+        unit = Unity.objects.create(name='Sac')
+        product = Product.objects.create(
+            product_id='p1', product_name='Ciment', product_quantity=10, product_unity=unit,
+            product_company='X', product_cp=100, product_sp=150,
+        )
+        a = Sell.objects.create(product=product, quantity=2, total_price=300, sell_date='2026-09-12T08:00Z')
+        b = Sell.objects.create(product=product, quantity=1, total_price=150, sell_date='2026-09-15T08:00Z')
+
+        benefits = self.get(start='2026-09-10', end='2026-09-20').data['benefits']
+
+        self.assertEqual(benefits[a.pk], [100.0, 100.0])
+        self.assertEqual(benefits[b.pk], [50.0, 150.0])

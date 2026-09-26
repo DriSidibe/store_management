@@ -1,13 +1,13 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AlertTriangle, Ban, Download, Link2, Pencil, Printer, PlusCircle, Receipt } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  dailySales,
   deleteSale,
   downloadReport,
   printReport,
   promoteSaleToProduct,
+  salesForPeriod,
   updateSale,
 } from '../api/api'
 import { useAuth } from '../auth/AuthContext'
@@ -26,23 +26,51 @@ import { Table, Tbody, Td, Th, Thead, Tr } from '../components/ui/Table'
 import { useConfirm } from '../confirm/ConfirmContext'
 import { extractErrorMessage, useToast } from '../toast/ToastContext'
 
-const today = () => new Date().toISOString().slice(0, 10)
+// Local calendar day as YYYY-MM-DD (toISOString would give the UTC day).
+const isoDay = (d) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+const daysAgo = (n) => {
+  const d = new Date()
+  d.setDate(d.getDate() - n)
+  return isoDay(d)
+}
+const today = () => daysAgo(0)
+const firstOfMonth = () => {
+  const d = new Date()
+  return isoDay(new Date(d.getFullYear(), d.getMonth(), 1))
+}
+const PRESETS = [
+  { label: "Aujourd'hui", range: () => [today(), today()] },
+  { label: 'Hier', range: () => [daysAgo(1), daysAgo(1)] },
+  { label: '7 derniers jours', range: () => [daysAgo(6), today()] },
+  { label: 'Ce mois', range: () => [firstOfMonth(), today()] },
+]
+// A date input reports partial keyboard entries as '' or years like 0002:
+// only query once the day is complete and plausible.
+const isCompleteDay = (value) => /^\d{4}-\d{2}-\d{2}$/.test(value) && value >= '2000-01-01'
+const formatDay = (value) => new Date(`${value}T00:00`).toLocaleDateString('fr-FR')
 
 export default function SoldProductsPage() {
   const toast = useToast()
   const confirm = useConfirm()
   const queryClient = useQueryClient()
   const { user } = useAuth()
-  const [date, setDate] = useState(today())
-  const [periodStart, setPeriodStart] = useState(today())
-  const [periodEnd, setPeriodEnd] = useState(today())
+  const [start, setStart] = useState(today())
+  const [end, setEnd] = useState(today())
   const [linkTarget, setLinkTarget] = useState(null)
   const [promoteTarget, setPromoteTarget] = useState(null)
   const [editTarget, setEditTarget] = useState(null)
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['sales-daily', date],
-    queryFn: () => dailySales(date),
+  const periodComplete = isCompleteDay(start) && isCompleteDay(end)
+  const periodError = periodComplete && start > end ? 'La date de début doit être avant la date de fin.' : null
+  const periodReady = periodComplete && !periodError
+  const singleDay = start === end
+
+  const { data, isLoading, isFetching } = useQuery({
+    queryKey: ['sales-daily', start, end],
+    queryFn: () => salesForPeriod(start, end),
+    enabled: periodReady,
+    placeholderData: keepPreviousData,
   })
 
   // Sales move stock, so product lists must refresh too.
@@ -84,54 +112,88 @@ export default function SoldProductsPage() {
     }
   }
 
-  const handlePrintPeriod = async () => {
+  const runReport = async (action) => {
     try {
-      await printReport('vente', { start: periodStart, end: periodEnd })
+      await action({ start, end })
     } catch (err) {
       toast.error(extractErrorMessage(err))
     }
   }
 
+  const applyPreset = (preset) => {
+    const [from, to] = preset.range()
+    setStart(from)
+    setEnd(to)
+  }
+
   return (
     <div>
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold text-ink">Ventes</h1>
-        <div className="flex flex-wrap gap-2">
-          <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-          <Button variant="outline" onClick={() => downloadReport('vente', 'pdf', { start: date, end: date })}>
-            <Download size={15} /> PDF
-          </Button>
-          <Button variant="outline" onClick={() => downloadReport('vente', 'csv', { start: date, end: date })}>
-            <Download size={15} /> CSV
-          </Button>
-        </div>
-      </div>
+      <h1 className="mb-5 text-xl font-semibold text-ink">Ventes</h1>
 
-      <Card className="mb-5 flex flex-wrap items-end gap-3 p-3">
-        <Field label="Du">
-          <Input type="date" value={periodStart} onChange={(e) => setPeriodStart(e.target.value)} />
-        </Field>
-        <Field label="Au">
-          <Input type="date" value={periodEnd} onChange={(e) => setPeriodEnd(e.target.value)} />
-        </Field>
-        <Button onClick={handlePrintPeriod}>
-          <Printer size={15} /> Imprimer la période
-        </Button>
-        <Button variant="outline" onClick={() => downloadReport('vente', 'csv', { start: periodStart, end: periodEnd })}>
-          <Download size={15} /> CSV
-        </Button>
+      <Card className="mb-5 space-y-3 p-3 sm:p-4">
+        <div className="flex flex-wrap gap-2">
+          {PRESETS.map((preset) => {
+            const [from, to] = preset.range()
+            const active = start === from && end === to
+            return (
+              <button
+                key={preset.label}
+                type="button"
+                onClick={() => applyPreset(preset)}
+                className={`rounded-full border px-3 py-1 text-xs font-medium cursor-pointer ${
+                  active
+                    ? 'border-brand bg-brand/10 text-brand'
+                    : 'border-border text-ink-secondary hover:bg-ink/5'
+                }`}
+              >
+                {preset.label}
+              </button>
+            )
+          })}
+        </div>
+        <div className="grid grid-cols-2 gap-3 sm:flex sm:items-end">
+          <Field label="Du">
+            <Input type="date" value={start} max={end || undefined} onChange={(e) => setStart(e.target.value)} />
+          </Field>
+          <Field label="Au">
+            <Input type="date" value={end} min={start || undefined} onChange={(e) => setEnd(e.target.value)} />
+          </Field>
+          <div className="col-span-2 flex flex-wrap gap-2 sm:ml-auto">
+            <Button onClick={() => runReport((range) => printReport('vente', range))} disabled={!periodReady}>
+              <Printer size={15} /> Imprimer
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => runReport((range) => downloadReport('vente', 'pdf', range))}
+              disabled={!periodReady}
+            >
+              <Download size={15} /> PDF
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => runReport((range) => downloadReport('vente', 'csv', range))}
+              disabled={!periodReady}
+            >
+              <Download size={15} /> CSV
+            </Button>
+          </div>
+        </div>
+        {periodError && <p className="text-xs text-danger">{periodError}</p>}
       </Card>
 
-      {isLoading ? (
+      {isLoading || !data ? (
         <TableSkeleton rows={6} cols={6} />
       ) : (
-        <>
+        <div className={`transition-opacity ${isFetching ? 'opacity-60' : ''}`}>
           <p className="mb-3 text-sm font-medium text-ink-secondary">
-            Total du jour : <span className="text-lg font-semibold text-ink">{data?.total} FCFA</span>
+            {singleDay ? `Le ${formatDay(start)}` : `Du ${formatDay(start)} au ${formatDay(end)}`}
+            {' · '}
+            {data.sales.length} vente{data.sales.length > 1 ? 's' : ''} · Total :{' '}
+            <span className="text-lg font-semibold text-ink">{data.total} FCFA</span>
           </p>
 
-          {data?.sales.length === 0 ? (
-            <EmptyState icon={Receipt} title="Aucune vente ce jour" />
+          {data.sales.length === 0 ? (
+            <EmptyState icon={Receipt} title={singleDay ? 'Aucune vente ce jour' : 'Aucune vente sur cette période'} />
           ) : (
             <>
               <CardStack>
@@ -146,6 +208,7 @@ export default function SoldProductsPage() {
                         <AlertTriangle size={11} /> Produit non lié
                       </Badge>
                     )}
+                    {!singleDay && <DataRow label="Date" value={formatDay(s.sell_date.slice(0, 10))} />}
                     <DataRow label="Client" value={s.customer_name || '-'} />
                     <DataRow label="Quantité" value={`${s.quantity} × ${s.unit_price}`} />
                     <DataRow label="Bénéfice" value={data.benefits[s.id] ? data.benefits[s.id][0].toFixed(0) : '-'} />
@@ -202,6 +265,7 @@ export default function SoldProductsPage() {
               <div className="hidden md:block">
                 <Table>
                   <Thead>
+                    {!singleDay && <Th>Date</Th>}
                     <Th>Produit</Th>
                     <Th>Client</Th>
                     <Th>Quantité</Th>
@@ -214,6 +278,7 @@ export default function SoldProductsPage() {
                   <Tbody>
                     {data?.sales.map((s) => (
                       <Tr key={s.id}>
+                        {!singleDay && <Td>{formatDay(s.sell_date.slice(0, 10))}</Td>}
                         <Td>
                           <div className="flex items-center gap-2">
                             <span className="truncate">{s.product_name_display}</span>
@@ -286,7 +351,7 @@ export default function SoldProductsPage() {
               </div>
             </>
           )}
-        </>
+        </div>
       )}
 
       <Modal

@@ -46,8 +46,8 @@ export const listPublicProductCategories = () =>
 
 export const listSales = (params) => client.get('/sales/', { params }).then((r) => r.data)
 export const getSale = (id) => client.get(`/sales/${id}/`).then((r) => r.data)
-export const dailySales = (date) =>
-  client.get('/sales/daily/', { params: date ? { date } : {} }).then((r) => r.data)
+export const salesForPeriod = (start, end) =>
+  client.get('/sales/daily/', { params: { start, end } }).then((r) => r.data)
 export const createSale = (data) => client.post('/sales/', toFormData(data)).then((r) => r.data)
 export const updateSale = (id, data) =>
   client.patch(`/sales/${id}/`, toFormData(data)).then((r) => r.data)

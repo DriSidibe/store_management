@@ -290,36 +290,47 @@ class SellViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'])
     def daily(self, request):
-        """Sales for a single day, plus running profit totals - mirrors the
-        legacy 'selled-products' screen."""
-        date_str = request.query_params.get('date')
-        if date_str:
-            selected_date = datetime.datetime.strptime(date_str, "%Y-%m-%d").date()
-        else:
-            selected_date = timezone.now().date()
+        """Sales between `start` and `end` (inclusive, YYYY-MM-DD), or on a
+        single `date`; today by default. Returns the period total and, for each
+        sale linked to a product, [profit, running profit over the period]."""
+        params = request.query_params
+        today = timezone.now().date()
+        try:
+            start = self._parse_day(params.get('start') or params.get('date'), today)
+            end = self._parse_day(params.get('end') or params.get('date'), today)
+        except ValueError:
+            raise ValidationError({'date': "Date invalide (format attendu : AAAA-MM-JJ)."})
+        if start > end:
+            raise ValidationError({'date': "La date de début doit être avant la date de fin."})
 
-        sales = Sell.objects.filter(is_deleted=False, sell_date__date=selected_date).order_by('pk')
+        sales = (
+            Sell.objects.filter(is_deleted=False, sell_date__date__range=(start, end))
+            .select_related('product', 'sold_by')
+            .order_by('sell_date', 'pk')
+        )
         total = sales.aggregate(Sum('total_price'))['total_price__sum'] or 0
 
         benefits = {}
-        for _sale in sales:
-            if not _sale.product:
+        running_total = 0.0
+        for sale in sales:
+            if not sale.product:
                 continue
-            running_total = sum(
-                (float(sale.unit_price) - sale.product.product_cp) * sale.quantity
-                for sale in sales if sale.pk <= _sale.pk and sale.product
-            )
-            benefits[_sale.pk] = [
-                float(_sale.total_price) - (float(_sale.quantity) * float(_sale.product.product_cp)),
-                running_total,
-            ]
+            profit = float(sale.total_price or 0) - float(sale.quantity or 0) * float(sale.product.product_cp)
+            running_total += profit
+            benefits[sale.pk] = [profit, running_total]
 
         return Response({
             'sales': SellSerializer(sales, many=True).data,
-            'selected_date': str(selected_date),
+            'start': str(start),
+            'end': str(end),
+            'selected_date': str(start),
             'total': total,
             'benefits': benefits,
         })
+
+    @staticmethod
+    def _parse_day(value, default):
+        return datetime.datetime.strptime(value, "%Y-%m-%d").date() if value else default
 
     @action(detail=True, methods=['post'], url_path='promote-to-product')
     def promote_to_product(self, request, pk=None):
