@@ -5,12 +5,15 @@ import { listProducts } from '../api/api'
 import useDebouncedValue from '../hooks/useDebouncedValue'
 
 /** Amazon/Jumia-style "type to search" product picker: shows a live
- * suggestions dropdown instead of requiring an exact code + a search click. */
+ * suggestions dropdown instead of requiring an exact code + a search click.
+ * `inline` lists the results below the field instead of in a floating
+ * dropdown - needed inside a modal, whose scrolling body would clip it. */
 export default function ProductAutocomplete({
   placeholder = 'Rechercher un produit (nom ou code)...',
   onSelect,
   autoFocus,
   className = '',
+  inline = false,
 }) {
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState(false)
@@ -54,7 +57,11 @@ export default function ProductAutocomplete({
       </div>
 
       {open && debounced.trim().length > 1 && (
-        <div className="absolute left-0 right-0 z-40 mt-1.5 max-h-80 overflow-y-auto rounded-lg border border-border bg-surface shadow-lg animate-fade-in">
+        <div
+          className={`mt-1.5 overflow-y-auto rounded-lg border border-border bg-surface animate-fade-in ${
+            inline ? 'max-h-[45dvh]' : 'absolute left-0 right-0 z-40 max-h-80 shadow-lg'
+          }`}
+        >
           {isFetching && results.length === 0 && (
             <p className="p-3 text-sm text-ink-muted">Recherche...</p>
           )}

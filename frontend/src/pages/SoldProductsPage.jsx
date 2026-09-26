@@ -357,16 +357,21 @@ export default function SoldProductsPage() {
       <Modal
         open={!!linkTarget}
         onClose={() => setLinkTarget(null)}
-        title={`Associer "${linkTarget?.product_name_display}" à un produit du catalogue`}
+        title="Associer à un produit du catalogue"
       >
+        <p className="mb-1 break-words text-sm font-medium text-ink">
+          Vente : {linkTarget?.product_name_display}
+          {linkTarget && ` · ${linkTarget.quantity} × ${linkTarget.unit_price} FCFA`}
+        </p>
         <p className="mb-3 text-xs text-ink-muted">
-          Recherche le produit déjà enregistré correspondant à cette vente. Cela mettra aussi à jour
-          le calcul de bénéfice de cette vente, et la quantité vendue sera retirée de son stock.
+          Choisis le produit du catalogue qui correspond à cette vente. Son bénéfice sera recalculé et la
+          quantité vendue retirée du stock du produit.
         </p>
         <ProductAutocomplete
           placeholder="Tape le nom ou le code du produit..."
           onSelect={handleLinkProduct}
           autoFocus
+          inline
         />
       </Modal>
 
