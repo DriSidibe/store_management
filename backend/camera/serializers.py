@@ -1,5 +1,6 @@
 from rest_framework import serializers
 
+from .media_access import signed_feed_url
 from .models import Camera
 
 
@@ -15,6 +16,6 @@ class CameraSerializer(serializers.ModelSerializer):
         ]
 
     def get_feed_url(self, obj):
-        request = self.context.get('request')
-        path = f'/api/camera/feed/{obj.id}/'
-        return request.build_absolute_uri(path) if request else path
+        # Signed and expiring: the <img> showing the stream can't send the
+        # auth header (see camera.media_access).
+        return signed_feed_url(obj.id)

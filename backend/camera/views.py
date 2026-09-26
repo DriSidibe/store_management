@@ -1,10 +1,13 @@
-import json
+import mimetypes
 import os
+from urllib.parse import quote
 
 from django.conf import settings
-from django.http import FileResponse, JsonResponse, StreamingHttpResponse
+from django.core import signing
+from django.http import FileResponse, HttpResponse, HttpResponseForbidden, JsonResponse, StreamingHttpResponse
 from rest_framework import status, viewsets
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -13,8 +16,11 @@ from .camera_stream import (
     reinitialize_camera_streams,
 )
 from store.permissions import IsSuperUser
+from store.utils import log_activity
 
-from .models import Camera
+from .media_access import feed_token_is_valid, resolve_media_token, signed_media_url
+from .models import Camera, RecordingSettings
+from .retention import RETENTION_CHOICES, storage_summary
 from .serializers import CameraSerializer
 from .video import VideoUnavailable, playable_clip
 
@@ -22,6 +28,13 @@ from .video import VideoUnavailable, playable_clip
 class CameraViewSet(viewsets.ModelViewSet):
     queryset = Camera.objects.all().order_by('id')
     serializer_class = CameraSerializer
+
+    def get_permissions(self):
+        # Adding, editing or removing cameras is for admins; watching them
+        # (and flipping/saving the stream, offered on the live page) for all.
+        if self.action in ('create', 'update', 'partial_update', 'destroy'):
+            return [IsSuperUser()]
+        return [IsAuthenticated()]
 
     @action(detail=True, methods=['get'], url_path='status')
     def status_(self, request, pk=None):
@@ -70,10 +83,13 @@ def gen_frames(pk):
 
 
 def video_feed(request, pk):
+    if not feed_token_is_valid(request.GET.get('t'), pk):
+        return HttpResponseForbidden("Lien de la caméra invalide ou expiré.")
     return StreamingHttpResponse(gen_frames(pk),
         content_type='multipart/x-mixed-replace; boundary=frame')
 
 
+@api_view(['POST'])
 def start_all(request):
     try:
         reinitialize_camera_streams()
@@ -82,6 +98,7 @@ def start_all(request):
         return JsonResponse({}, status=500)
 
 
+@api_view(['POST'])
 def stop_all(request):
     global camera_stream_
     try:
@@ -95,18 +112,16 @@ def stop_all(request):
         return JsonResponse({}, status=500)
 
 
+@api_view(['POST'])
 def save_snapshot(request):
-    if request.method == 'POST':
-        data = json.loads(request.body)
-        camera_id = data.get('camera_id')
-        snapshot = data.get('snapshot')
-        try:
-            camera = Camera.objects.get(pk=camera_id)
-            print(f"Snapshot for camera {camera.name}: {snapshot}")
-            return JsonResponse({'status': 'success', 'snapshot': snapshot})
-        except Camera.DoesNotExist:
-            return JsonResponse({'error': 'Camera not found'}, status=404)
-    return JsonResponse({'error': 'Invalid request method'}, status=400)
+    camera_id = request.data.get('camera_id')
+    snapshot = request.data.get('snapshot')
+    try:
+        camera = Camera.objects.get(pk=camera_id)
+        print(f"Snapshot for camera {camera.name}: {snapshot}")
+        return JsonResponse({'status': 'success', 'snapshot': snapshot})
+    except Camera.DoesNotExist:
+        return JsonResponse({'error': 'Camera not found'}, status=404)
 
 
 class LocalRecordingsView(APIView):
@@ -123,14 +138,15 @@ class LocalRecordingsView(APIView):
             stem = f.name.split('.')[0]
             records.append({
                 'name': f.name,
-                'url': f"{settings.MEDIA_URL}recordings/{f.name}",
-                'thumbnail': f"{settings.MEDIA_URL}thumbnails/thumbnail_{stem}.jpg",
+                'url': signed_media_url(f"recordings/{f.name}"),
+                'thumbnail': signed_media_url(f"thumbnails/thumbnail_{stem}.jpg"),
             })
         return Response(records)
 
 
 class MotionEyeCameraListView(APIView):
     """Lists the camera folders motionEye has recorded to."""
+    permission_classes = [IsSuperUser]
 
     def get(self, request):
         base = settings.MOTIONEYE_MEDIA_ROOT
@@ -141,6 +157,8 @@ class MotionEyeCameraListView(APIView):
 
 
 class MotionEyeDateListView(APIView):
+    permission_classes = [IsSuperUser]
+
     def get(self, request, camera_id):
         cam_path = os.path.join(settings.MOTIONEYE_MEDIA_ROOT, camera_id)
         if not os.path.isdir(cam_path):
@@ -151,17 +169,22 @@ class MotionEyeDateListView(APIView):
 
 
 class MotionEyeMediaView(APIView):
+    permission_classes = [IsSuperUser]
+
     def get(self, request, camera_id, date):
         folder = os.path.join(settings.MOTIONEYE_MEDIA_ROOT, camera_id, date)
         if not os.path.isdir(folder):
             return Response({'error': 'Not found'}, status=404)
         files = sorted(os.listdir(folder))
-        base_url = f"{settings.MEDIA_URL}motioneye/{camera_id}/{date}/"
-        images = [base_url + f for f in files if f.lower().endswith((".png", ".jpg", ".jpeg", ".gif"))]
+        media_dir = os.path.relpath(folder, settings.MEDIA_ROOT).replace(os.sep, '/')
+        images = [
+            signed_media_url(f"{media_dir}/{f}")
+            for f in files if f.lower().endswith((".png", ".jpg", ".jpeg", ".gif"))
+        ]
         # Videos are played through MotionEyeVideoView (converted to H.264);
         # motionEye's own .thumb files give a preview image for each clip.
         videos = [
-            {'name': f, 'thumbnail': base_url + f + '.thumb' if f + '.thumb' in files else None}
+            {'name': f, 'thumbnail': signed_media_url(f"{media_dir}/{f}.thumb") if f + '.thumb' in files else None}
             for f in files if f.lower().endswith('.mp4')
         ]
         return Response({'camera_id': camera_id, 'date': date, 'images': images, 'videos': videos})
@@ -179,3 +202,59 @@ class MotionEyeVideoView(APIView):
         except VideoUnavailable as exc:
             return Response({'detail': str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
         return FileResponse(open(path, 'rb'), content_type='video/mp4')
+
+
+class ProtectedMediaView(APIView):
+    """Serves a camera file from a signed link (see camera.media_access).
+    In production nginx sends the file itself (X-Accel-Redirect to an
+    internal location); elsewhere Django streams it."""
+    permission_classes = [AllowAny]  # the signed token is the credential
+    authentication_classes = []
+
+    def get(self, request):
+        try:
+            relative, full = resolve_media_token(request.query_params.get('t'))
+        except signing.BadSignature:
+            return HttpResponseForbidden("Lien invalide ou expiré.")
+        except FileNotFoundError:
+            return Response({'detail': "Fichier introuvable."}, status=status.HTTP_404_NOT_FOUND)
+        content_type = 'image/jpeg' if relative.endswith('.thumb') else (
+            mimetypes.guess_type(relative)[0] or 'application/octet-stream'
+        )
+        if settings.PROTECTED_MEDIA_ACCEL:
+            response = HttpResponse(content_type=content_type)
+            response['X-Accel-Redirect'] = '/protected-media/' + quote(relative)
+        else:
+            response = FileResponse(open(full, 'rb'), content_type=content_type)
+        response['Cache-Control'] = 'private, max-age=3600'
+        return response
+
+
+class RecordingSettingsView(APIView):
+    """How long recordings are kept (enforced nightly by purge_recordings),
+    with the disk usage needed to choose sensibly."""
+    permission_classes = [IsSuperUser]
+
+    def get(self, request):
+        return Response({'retention_days': RecordingSettings.load().retention_days, **storage_summary()})
+
+    def put(self, request):
+        try:
+            days = int(request.data.get('retention_days'))
+        except (TypeError, ValueError):
+            days = None
+        if days not in RETENTION_CHOICES:
+            return Response({'retention_days': "Durée non proposée."}, status=status.HTTP_400_BAD_REQUEST)
+        choice = next(c for c in storage_summary()['choices'] if c['days'] == days)
+        if not choice['fits']:
+            return Response(
+                {'retention_days': "Pas assez d'espace disque pour garder les vidéos aussi longtemps."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        settings_row = RecordingSettings.load()
+        previous = settings_row.retention_days
+        settings_row.retention_days = days
+        settings_row.save(update_fields=['retention_days'])
+        log_activity(request, 'updated', 'RecordingSettings', f"Conservation des vidéos : {RETENTION_CHOICES[days]}",
+                     f"avant : {previous} jours")
+        return self.get(request)

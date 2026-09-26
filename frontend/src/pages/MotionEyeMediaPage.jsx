@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
-import { ChevronLeft, ChevronRight, Film, Image as ImageIcon, Play } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { ChevronLeft, ChevronRight, Film, Image as ImageIcon, Pause, Play, RotateCcw, RotateCw } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { fetchMotionEyeVideo, listMotionEyeMedia } from '../api/api'
 import Button from '../components/ui/Button'
@@ -10,6 +10,35 @@ import ZoomableImage from '../components/ui/ZoomableImage'
 
 // "21-13-49.mp4" -> "21:13:49"
 const clipTime = (name) => name.replace(/\.mp4$/i, '').replace(/-/g, ':')
+
+const formatSeconds = (s) => {
+  const total = Math.floor(s || 0)
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`
+}
+
+// A camera mounted sideways or upside down stays that way: remember the
+// rotation per camera, in this browser.
+function useCameraRotation(cameraId) {
+  const key = `video-rotation:${cameraId}`
+  const [rotation, setRotation] = useState(() => {
+    try {
+      return Number(localStorage.getItem(key)) || 0
+    } catch {
+      return 0
+    }
+  })
+  const rotate = (delta) =>
+    setRotation((current) => {
+      const next = (current + delta + 360) % 360
+      try {
+        localStorage.setItem(key, String(next))
+      } catch {
+        /* private mode: rotation just isn't remembered */
+      }
+      return next
+    })
+  return [rotation, rotate]
+}
 
 // Errors of blob requests arrive as a Blob too: read the JSON message out of it.
 async function blobErrorMessage(err) {
@@ -27,6 +56,7 @@ async function blobErrorMessage(err) {
 export default function MotionEyeMediaPage() {
   const { cameraId, date } = useParams()
   const [playing, setPlaying] = useState(null) // index in data.videos
+  const [rotation, rotate] = useCameraRotation(cameraId)
   const { data, isLoading } = useQuery({
     queryKey: ['motioneye-media', cameraId, date],
     queryFn: () => listMotionEyeMedia(cameraId, date),
@@ -90,7 +120,14 @@ export default function MotionEyeMediaPage() {
       >
         {current && (
           <>
-            <ClipPlayer key={current.name} cameraId={cameraId} date={date} name={current.name} />
+            <ClipPlayer
+              key={current.name}
+              cameraId={cameraId}
+              date={date}
+              name={current.name}
+              rotation={rotation}
+              onRotate={rotate}
+            />
             <div className="mt-3 flex items-center justify-between gap-2">
               <Button variant="outline" disabled={playing === 0} onClick={() => setPlaying(playing - 1)}>
                 <ChevronLeft size={15} /> Précédente
@@ -113,9 +150,16 @@ export default function MotionEyeMediaPage() {
   )
 }
 
-function ClipPlayer({ cameraId, date, name }) {
+function ClipPlayer({ cameraId, date, name, rotation, onRotate }) {
   const [src, setSrc] = useState(null)
   const [error, setError] = useState(null)
+  const videoRef = useRef(null)
+  const boxRef = useRef(null)
+  const [box, setBox] = useState({ width: 0, height: 0 })
+  const [paused, setPaused] = useState(true)
+  const [time, setTime] = useState(0)
+  const [duration, setDuration] = useState(0)
+  const [speed, setSpeed] = useState(1)
 
   useEffect(() => {
     let objectUrl = null
@@ -135,15 +179,120 @@ function ClipPlayer({ cameraId, date, name }) {
     }
   }, [cameraId, date, name])
 
+  // Rotated a quarter turn, the video must fit the box with width and height swapped.
+  useEffect(() => {
+    const el = boxRef.current
+    if (!el) return undefined
+    const observer = new ResizeObserver(([entry]) =>
+      setBox({ width: entry.contentRect.width, height: entry.contentRect.height }),
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
+
+  useEffect(() => {
+    if (videoRef.current) videoRef.current.playbackRate = speed
+  }, [speed, src])
+
+  const sideways = rotation % 180 !== 0
+  const togglePlay = () => {
+    const video = videoRef.current
+    if (!video) return
+    if (video.paused) video.play()
+    else video.pause()
+  }
+
   return (
-    <div className="flex aspect-video items-center justify-center overflow-hidden rounded-lg bg-black">
-      {error ? (
-        <p className="px-4 text-center text-sm text-white/80">{error}</p>
-      ) : src ? (
-        <video src={src} controls autoPlay muted playsInline className="h-full w-full" />
-      ) : (
-        <p className="text-sm text-white/70">Préparation de la vidéo…</p>
-      )}
+    <div>
+      <div ref={boxRef} className="relative aspect-video overflow-hidden rounded-lg bg-black">
+        {error ? (
+          <p className="absolute inset-0 flex items-center justify-center px-4 text-center text-sm text-white/80">{error}</p>
+        ) : src ? (
+          <video
+            ref={videoRef}
+            src={src}
+            autoPlay
+            muted
+            playsInline
+            onClick={togglePlay}
+            onPlay={() => setPaused(false)}
+            onPause={() => setPaused(true)}
+            onTimeUpdate={(e) => setTime(e.currentTarget.currentTime)}
+            onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
+            className="absolute left-1/2 top-1/2 cursor-pointer object-contain"
+            style={{
+              width: sideways ? box.height : '100%',
+              height: sideways ? box.width : '100%',
+              transform: `translate(-50%, -50%) rotate(${rotation}deg)`,
+            }}
+          />
+        ) : (
+          <p className="absolute inset-0 flex items-center justify-center text-sm text-white/70">Préparation de la vidéo…</p>
+        )}
+      </div>
+
+      {/* Our own controls: native ones would turn with the rotated video. */}
+      <div className="mt-2 flex items-center gap-2">
+        <button
+          type="button"
+          onClick={togglePlay}
+          disabled={!src}
+          title={paused ? 'Lecture' : 'Pause'}
+          className="rounded-lg p-2 text-ink hover:bg-ink/5 disabled:opacity-40 cursor-pointer"
+        >
+          {paused ? <Play size={18} /> : <Pause size={18} />}
+        </button>
+        <input
+          type="range"
+          min="0"
+          max={duration || 0}
+          step="0.1"
+          value={time}
+          disabled={!src}
+          onChange={(e) => {
+            if (videoRef.current) videoRef.current.currentTime = Number(e.target.value)
+          }}
+          aria-label="Position dans la vidéo"
+          className="min-w-0 flex-1 accent-[var(--brand)]"
+        />
+        <span className="shrink-0 font-mono text-xs text-ink-muted">
+          {formatSeconds(time)} / {formatSeconds(duration)}
+        </span>
+      </div>
+      <div className="mt-1 flex items-center justify-between gap-2">
+        <div className="flex gap-1">
+          {[1, 2, 4].map((rate) => (
+            <button
+              key={rate}
+              type="button"
+              onClick={() => setSpeed(rate)}
+              className={`rounded-md px-2 py-1 text-xs font-medium cursor-pointer ${
+                speed === rate ? 'bg-brand/10 text-brand' : 'text-ink-secondary hover:bg-ink/5'
+              }`}
+            >
+              ×{rate}
+            </button>
+          ))}
+        </div>
+        <div className="flex gap-1">
+          <button
+            type="button"
+            onClick={() => onRotate(-90)}
+            title="Pivoter à gauche"
+            className="rounded-lg p-2 text-ink-secondary hover:bg-ink/5 hover:text-ink cursor-pointer"
+          >
+            <RotateCcw size={17} />
+          </button>
+          <button
+            type="button"
+            onClick={() => onRotate(90)}
+            title="Pivoter à droite"
+            className="rounded-lg p-2 text-ink-secondary hover:bg-ink/5 hover:text-ink cursor-pointer"
+          >
+            <RotateCw size={17} />
+          </button>
+        </div>
+      </div>
     </div>
   )
 }

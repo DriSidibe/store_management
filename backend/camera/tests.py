@@ -25,7 +25,10 @@ class MotionEyeVideoTests(APITestCase):
         for name in ('21-13-49.mp4', '21-13-49.mp4.thumb', '09-19-01.mp4', 'snap.jpg'):
             with open(os.path.join(day, name), 'wb') as f:
                 f.write(b'mjpeg')
-        settings = override_settings(MOTIONEYE_MEDIA_ROOT=self.media, VIDEO_CACHE_DIR=self.cache)
+        settings = override_settings(
+            MEDIA_ROOT=self.root, MOTIONEYE_MEDIA_ROOT=self.media, VIDEO_CACHE_DIR=self.cache,
+            PROTECTED_MEDIA_ACCEL=False,
+        )
         settings.enable()
         self.addCleanup(settings.disable)
         self.admin = User.objects.create_superuser('admin', password='x')
@@ -38,16 +41,21 @@ class MotionEyeVideoTests(APITestCase):
         self.addCleanup(response.close)  # releases the served file (needed on Windows)
         return response, run
 
-    def test_listing_gives_each_clip_its_thumbnail_in_time_order(self):
+    def test_listing_gives_each_clip_a_signed_thumbnail_in_time_order(self):
         self.client.force_authenticate(self.admin)
 
         data = self.client.get('/api/camera/motioneye/Camera2/2026-09-26/').data
 
-        self.assertEqual(data['videos'], [
-            {'name': '09-19-01.mp4', 'thumbnail': None},
-            {'name': '21-13-49.mp4', 'thumbnail': '/media/motioneye/Camera2/2026-09-26/21-13-49.mp4.thumb'},
-        ])
-        self.assertEqual(data['images'], ['/media/motioneye/Camera2/2026-09-26/snap.jpg'])
+        self.assertEqual([v['name'] for v in data['videos']], ['09-19-01.mp4', '21-13-49.mp4'])
+        self.assertIsNone(data['videos'][0]['thumbnail'])
+        thumbnail = data['videos'][1]['thumbnail']
+        self.assertTrue(thumbnail.startswith('/api/camera/media/?t='))
+        self.client.force_authenticate(None)  # the signed link alone is enough
+        response = self.client.get(thumbnail)
+        self.assertEqual((response.status_code, response['Content-Type']), (200, 'image/jpeg'))
+        self.assertEqual(b''.join(response.streaming_content), b'mjpeg')
+        response.close()
+        self.assertEqual(len(data['images']), 1)
 
     def test_clip_is_converted_once_then_served_from_cache(self):
         self.client.force_authenticate(self.admin)
@@ -94,3 +102,144 @@ class MotionEyeVideoTests(APITestCase):
             response, run = self.play(url)
             self.assertEqual(response.status_code, 404, url)
             self.assertEqual(run.call_count, 0)
+
+
+class CameraAccessTests(APITestCase):
+    def setUp(self):
+        self.root = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.root)
+        os.makedirs(os.path.join(self.root, 'motioneye', 'Camera1', '2026-09-26'))
+        with open(os.path.join(self.root, 'motioneye', 'Camera1', '2026-09-26', 'a.jpg'), 'wb') as f:
+            f.write(b'jpeg')
+        with open(os.path.join(self.root, 'secret.txt'), 'wb') as f:
+            f.write(b'secret')
+        settings = override_settings(MEDIA_ROOT=self.root, PROTECTED_MEDIA_ACCEL=True)
+        settings.enable()
+        self.addCleanup(settings.disable)
+
+    def test_signed_media_link_is_served_by_nginx_and_cannot_be_forged(self):
+        from django.core import signing
+        from camera.media_access import MEDIA_SALT, signed_media_url
+
+        ok = self.client.get(signed_media_url('motioneye/Camera1/2026-09-26/a.jpg'))
+        self.assertEqual(ok.status_code, 200)
+        self.assertEqual(ok['X-Accel-Redirect'], '/protected-media/motioneye/Camera1/2026-09-26/a.jpg')
+        self.assertEqual(ok['Content-Type'], 'image/jpeg')
+
+        forged = signing.dumps('secret.txt', salt='wrong-salt', compress=True)
+        self.assertEqual(self.client.get(f'/api/camera/media/?t={forged}').status_code, 403)
+        self.assertEqual(self.client.get('/api/camera/media/?t=garbage').status_code, 403)
+        escaping = signing.dumps('../etc/passwd', salt=MEDIA_SALT, compress=True)
+        self.assertEqual(self.client.get(f'/api/camera/media/?t={escaping}').status_code, 404)
+
+    def test_signed_media_link_expires(self):
+        from camera.media_access import signed_media_url
+
+        url = signed_media_url('motioneye/Camera1/2026-09-26/a.jpg')
+        with mock.patch('camera.media_access.MEDIA_MAX_AGE', -1):
+            self.assertEqual(self.client.get(url).status_code, 403)
+
+    def test_live_feed_needs_the_signed_link_of_that_camera(self):
+        from camera.media_access import signed_feed_url
+
+        self.assertEqual(self.client.get('/api/camera/feed/1/').status_code, 403)
+        other_camera = signed_feed_url(2).split('?')[1]
+        self.assertEqual(self.client.get(f'/api/camera/feed/1/?{other_camera}').status_code, 403)
+        with mock.patch('camera.views.gen_frames', return_value=iter([b'frame'])):
+            response = self.client.get(signed_feed_url(1))
+        self.assertEqual(response.status_code, 200)
+
+    def test_camera_controls_need_a_login_and_admin_for_changes(self):
+        self.assertEqual(self.client.post('/api/camera/start-all/').status_code, 401)
+        self.assertEqual(self.client.post('/api/camera/stop-all/').status_code, 401)
+        self.assertEqual(self.client.get('/api/camera/cameras/').status_code, 401)
+
+        self.client.force_authenticate(User.objects.create_user('vendeur', password='x'))
+        self.assertEqual(self.client.get('/api/camera/start-all/').status_code, 405)  # no GET side effects
+        self.assertEqual(self.client.get('/api/camera/cameras/').status_code, 200)
+        camera = {'name': 'Entrée', 'ip_address': '192.168.1.9'}
+        self.assertEqual(self.client.post('/api/camera/cameras/', camera).status_code, 403)
+        self.assertEqual(self.client.get('/api/camera/motioneye/').status_code, 403)
+
+        self.client.force_authenticate(User.objects.create_superuser('admin', password='x'))
+        self.assertEqual(self.client.post('/api/camera/cameras/', camera).status_code, 201)
+
+
+class RetentionTests(APITestCase):
+    def setUp(self):
+        import datetime
+        self.today = datetime.date(2026, 9, 26)
+        self.root = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.root)
+        self.media = os.path.join(self.root, 'motioneye')
+        self.cache = os.path.join(self.root, 'cache')
+        for camera in ('Camera1', 'Camera2'):
+            for days_ago in (0, 1, 29, 30, 45):
+                day = (self.today - datetime.timedelta(days=days_ago)).isoformat()
+                for base in (self.media, self.cache):
+                    os.makedirs(os.path.join(base, camera, day))
+                    with open(os.path.join(base, camera, day, 'clip.mp4'), 'wb') as f:
+                        f.write(b'x' * 1000)
+            with open(os.path.join(self.media, camera, 'lastsnap.jpg'), 'wb') as f:
+                f.write(b'x')
+        settings = override_settings(MOTIONEYE_MEDIA_ROOT=self.media, VIDEO_CACHE_DIR=self.cache)
+        settings.enable()
+        self.addCleanup(settings.disable)
+
+    def days_left(self, base):
+        days = set()
+        for camera in os.listdir(base):
+            folder = os.path.join(base, camera)
+            if os.path.isdir(folder):
+                days.update(d for d in os.listdir(folder) if d[0].isdigit())
+        return sorted(days)
+
+    def test_keeps_exactly_the_retention_period_and_cleans_the_cache(self):
+        from camera.retention import purge
+
+        removed = purge(30, today=self.today)
+
+        self.assertEqual(self.days_left(self.media), ['2026-08-28', '2026-09-25', '2026-09-26'])
+        self.assertEqual(self.days_left(self.cache), ['2026-08-28', '2026-09-25', '2026-09-26'])
+        self.assertEqual(len(removed), 4)  # 2 cameras x (30 and 45 days ago)
+        self.assertTrue(os.path.exists(os.path.join(self.media, 'Camera1', 'lastsnap.jpg')))
+
+    def test_low_disk_space_deletes_oldest_days_but_never_today(self):
+        from collections import namedtuple
+        from camera.retention import purge
+        Usage = namedtuple('Usage', 'total used free')
+
+        with mock.patch('camera.retention.shutil.disk_usage', return_value=Usage(100, 99, 1)):
+            purge(90, today=self.today)
+
+        self.assertEqual(self.days_left(self.media), ['2026-09-26'])
+
+    def test_settings_api_reports_usage_and_rejects_what_does_not_fit(self):
+        from collections import namedtuple
+        Usage = namedtuple('Usage', 'total used free')
+        self.client.force_authenticate(User.objects.create_user('chef', password='x', is_staff=True))
+        self.assertEqual(self.client.get('/api/camera/recording-settings/').status_code, 403)
+
+        self.client.force_authenticate(User.objects.create_superuser('admin', password='x'))
+        with mock.patch('camera.retention.shutil.disk_usage', return_value=Usage(100_000, 30_000, 70_000)):  # budget: 10k used + 70k free - 10k margin
+            data = self.client.get('/api/camera/recording-settings/').data
+            self.assertEqual(data['retention_days'], 30)
+            self.assertEqual((data['days_stored'], data['oldest_day'], data['used_bytes']), (5, '2026-08-12', 10_000))
+            fits = {c['days']: c['fits'] for c in data['choices']}
+            self.assertEqual(fits, {7: True, 14: True, 30: True, 60: False, 90: False})
+
+            self.assertEqual(self.client.put('/api/camera/recording-settings/', {'retention_days': 60}).status_code, 400)
+            self.assertEqual(self.client.put('/api/camera/recording-settings/', {'retention_days': 10}).status_code, 400)
+            response = self.client.put('/api/camera/recording-settings/', {'retention_days': 14})
+        self.assertEqual((response.status_code, response.data['retention_days']), (200, 14))
+
+    def test_nightly_command_uses_the_saved_setting(self):
+        from django.core.management import call_command
+        from camera.models import RecordingSettings
+        RecordingSettings.objects.create(pk=1, retention_days=7)
+
+        with mock.patch('camera.retention.timezone.localdate', return_value=self.today), \
+                open(os.devnull, 'w') as devnull:
+            call_command('purge_recordings', stdout=devnull)
+
+        self.assertEqual(self.days_left(self.media), ['2026-09-25', '2026-09-26'])

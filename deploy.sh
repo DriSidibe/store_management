@@ -97,10 +97,22 @@ server {
         access_log off;
     }
 
-    location /media/ {
-        alias $MEDIA_ROOT/;
+    # Only product images are public (the storefront shows them).
+    location /media/products_images/ {
+        alias $MEDIA_ROOT/products_images/;
         expires 30d;
         access_log off;
+    }
+
+    # Everything else under media (camera recordings, snapshots) is private:
+    # the API hands out signed links and nginx serves the file from here.
+    location /media/ {
+        return 404;
+    }
+
+    location /protected-media/ {
+        internal;
+        alias $MEDIA_ROOT/;
     }
 
     location /api/ {
@@ -164,9 +176,38 @@ RestartSec=3
 WantedBy=multi-user.target
 EOF
 
+# Nightly clean-up of camera recordings older than the retention period set
+# in the app (Vidéos page).
+sudo tee "/etc/systemd/system/$SERVICE_NAME-purge.service" > /dev/null <<EOF
+[Unit]
+Description=Delete camera recordings older than the retention period
+
+[Service]
+Type=oneshot
+User=$DEPLOY_USER
+Group=www-data
+WorkingDirectory=$BACKEND_DIR
+EnvironmentFile=$ENV_FILE
+ExecStart=$VENV_DIR/bin/python manage.py purge_recordings
+Nice=10
+EOF
+
+sudo tee "/etc/systemd/system/$SERVICE_NAME-purge.timer" > /dev/null <<EOF
+[Unit]
+Description=Nightly camera recordings clean-up
+
+[Timer]
+OnCalendar=*-*-* 03:30:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+EOF
+
 sudo systemctl daemon-reload
 sudo systemctl restart "$SERVICE_NAME"
 sudo systemctl enable "$SERVICE_NAME" --quiet
+sudo systemctl enable --now "$SERVICE_NAME-purge.timer" --quiet
 
 # --- 7. Health check -----------------------------------------------------------
 log "Checking that the service came up..."

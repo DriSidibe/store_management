@@ -171,12 +171,15 @@ export const flipCamera = (id, type, enabled) =>
   client.post(`/camera/cameras/${id}/flip/`, { type, enabled }).then((r) => r.data)
 export const saveCameraStream = (id) =>
   client.post(`/camera/cameras/${id}/save/`).then((r) => r.data)
-export const startAllCameras = () => client.get('/camera/start-all/').then((r) => r.data)
-export const stopAllCameras = () => client.get('/camera/stop-all/').then((r) => r.data)
+export const startAllCameras = () => client.post('/camera/start-all/').then((r) => r.data)
+export const stopAllCameras = () => client.post('/camera/stop-all/').then((r) => r.data)
 export const saveSnapshot = (cameraId, snapshot) =>
   client.post('/camera/save-snapshot/', { camera_id: cameraId, snapshot }).then((r) => r.data)
 export const listLocalRecordings = () => client.get('/camera/recordings/').then((r) => r.data)
 export const listMotionEyeCameras = () => client.get('/camera/motioneye/').then((r) => r.data)
+export const getRecordingSettings = () => client.get('/camera/recording-settings/').then((r) => r.data)
+export const updateRecordingSettings = (retentionDays) =>
+  client.put('/camera/recording-settings/', { retention_days: retentionDays }).then((r) => r.data)
 export const listMotionEyeDates = (cameraId) =>
   client.get(`/camera/motioneye/${cameraId}/`).then((r) => r.data)
 export const listMotionEyeMedia = (cameraId, date) =>

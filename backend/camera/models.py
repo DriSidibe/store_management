@@ -79,3 +79,18 @@ class Camera(models.Model):
 
     def __str__(self):
         return self.name
+
+class RecordingSettings(models.Model):
+    """App-wide settings for the camera recordings (a single row, see load())."""
+
+    retention_days = models.PositiveIntegerField(
+        default=30,
+        help_text="Recordings older than this many days are deleted every night.",
+    )
+
+    @classmethod
+    def load(cls):
+        return cls.objects.get_or_create(pk=1)[0]
+
+    def __str__(self):
+        return f"Conservation des vidéos : {self.retention_days} jours"
