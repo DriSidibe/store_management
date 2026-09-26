@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom'
 import EmptyState from '../components/ui/EmptyState'
 import { Image as ImageIcon, Film } from 'lucide-react'
 import { listMotionEyeMedia } from '../api/api'
+import ZoomableImage from '../components/ui/ZoomableImage'
 
 export default function MotionEyeMediaPage() {
   const { cameraId, date } = useParams()
@@ -23,9 +24,7 @@ export default function MotionEyeMediaPage() {
       ) : (
         <div className="mb-8 grid gap-3 sm:grid-cols-3 lg:grid-cols-4">
           {data.images.map((src) => (
-            <a key={src} href={src} target="_blank" rel="noreferrer">
-              <img src={src} alt="" className="aspect-video w-full rounded-lg object-cover" />
-            </a>
+            <ZoomableImage key={src} src={src} className="aspect-video w-full rounded-lg object-cover" />
           ))}
         </div>
       )}

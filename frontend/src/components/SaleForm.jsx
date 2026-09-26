@@ -4,6 +4,7 @@ import { useId, useState } from 'react'
 import { createSale, listCustomers } from '../api/api'
 import { extractErrorMessage, useToast } from '../toast/ToastContext'
 import ProductAutocomplete from './ProductAutocomplete'
+import ZoomableImage from './ui/ZoomableImage'
 import Button from './ui/Button'
 import { Field, Input, RequiredLegend } from './ui/Form'
 
@@ -117,7 +118,7 @@ export default function SaleForm({ lockedProduct = null, onSold, submitLabel = '
           {product ? (
             <div className="flex items-center gap-3 rounded-lg border border-success/20 bg-success/10 p-2.5">
               {product.product_image ? (
-                <img src={product.product_image} alt="" className="h-10 w-10 rounded-md object-cover" />
+                <ZoomableImage src={product.product_image} alt={product.product_name} className="h-10 w-10 rounded-md object-cover" />
               ) : (
                 <div className="h-10 w-10 shrink-0 rounded-md bg-ink/10" />
               )}

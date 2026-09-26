@@ -10,6 +10,7 @@ import { CardStack } from '../components/ui/CardList'
 import EmptyState from '../components/ui/EmptyState'
 import { TableSkeleton } from '../components/ui/Skeleton'
 import { Table, Tbody, Td, Th, Thead, Tr } from '../components/ui/Table'
+import ZoomableImage from '../components/ui/ZoomableImage'
 
 export default function LowStockPage() {
   const [page, setPage] = useState(1)
@@ -48,7 +49,7 @@ export default function LowStockPage() {
             {data?.results.map((p) => (
               <Card key={p.product_id} className="flex items-center gap-3 p-3">
                 {p.product_image ? (
-                  <img src={p.product_image} alt="" className="h-12 w-12 shrink-0 rounded-lg object-cover" />
+                  <ZoomableImage src={p.product_image} alt={p.product_name} className="h-12 w-12 shrink-0 rounded-lg object-cover" />
                 ) : (
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-ink/5 text-ink-muted">
                     <Package size={18} />

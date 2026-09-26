@@ -8,6 +8,7 @@ import Button from '../components/ui/Button'
 import Card from '../components/ui/Card'
 import { Field, Input, RequiredLegend, Select, Textarea } from '../components/ui/Form'
 import { extractErrorMessage, useToast } from '../toast/ToastContext'
+import ZoomableImage from '../components/ui/ZoomableImage'
 
 function toForm(p) {
   const [, etg, cas] = p.product_id.split('-')
@@ -93,7 +94,7 @@ export default function UpdateProductPage() {
           <form className="space-y-4" onSubmit={handleSubmit}>
             <div className="flex items-center gap-3">
               {product.product_image ? (
-                <img src={product.product_image} alt="" className="h-16 w-16 rounded-lg object-cover" />
+                <ZoomableImage src={product.product_image} alt={product.product_name} className="h-16 w-16 rounded-lg object-cover" />
               ) : (
                 <div className="h-16 w-16 rounded-lg bg-ink/5" />
               )}

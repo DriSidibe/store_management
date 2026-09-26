@@ -13,6 +13,7 @@ import { Input, Select } from '../components/ui/Form'
 import Skeleton from '../components/ui/Skeleton'
 import useDebouncedValue from '../hooks/useDebouncedValue'
 import { useTheme } from '../theme/ThemeContext'
+import ZoomableImage from '../components/ui/ZoomableImage'
 
 const CATEGORY_ICONS = {
   'électricité': Zap,
@@ -185,7 +186,7 @@ export default function StorefrontPage() {
                 >
                   <div className="relative flex aspect-square items-center justify-center overflow-hidden bg-ink/5">
                     {p.product_image ? (
-                      <img
+                      <ZoomableImage
                         src={p.product_image}
                         alt={p.product_name}
                         className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"

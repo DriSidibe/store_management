@@ -10,6 +10,7 @@ import { CardStack } from '../components/ui/CardList'
 import { Field, Input } from '../components/ui/Form'
 import { Table, Tbody, Td, Th, Thead, Tr } from '../components/ui/Table'
 import { extractErrorMessage } from '../toast/ToastContext'
+import ZoomableImage from '../components/ui/ZoomableImage'
 
 export default function AddProductToBillPage() {
   const { billId } = useParams()
@@ -52,7 +53,7 @@ export default function AddProductToBillPage() {
           <form className="space-y-4" onSubmit={handleAdd}>
             <div className="flex items-center gap-3 rounded-lg border border-border p-2.5">
               {product.product_image ? (
-                <img src={product.product_image} alt="" className="h-10 w-10 rounded-md object-cover" />
+                <ZoomableImage src={product.product_image} alt={product.product_name} className="h-10 w-10 rounded-md object-cover" />
               ) : (
                 <div className="h-10 w-10 shrink-0 rounded-md bg-ink/10" />
               )}

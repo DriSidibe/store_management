@@ -16,6 +16,7 @@ import { Table, Tbody, Td, Th, Thead, Tr } from '../components/ui/Table'
 import { useConfirm } from '../confirm/ConfirmContext'
 import useDebouncedValue from '../hooks/useDebouncedValue'
 import { extractErrorMessage, useToast } from '../toast/ToastContext'
+import ZoomableImage from '../components/ui/ZoomableImage'
 
 export default function ProductsPage() {
   const { user } = useAuth()
@@ -145,7 +146,7 @@ export default function ProductsPage() {
                 >
                   <div className="relative flex aspect-square items-center justify-center bg-ink/5">
                     {p.product_image ? (
-                      <img src={p.product_image} alt="" className="h-full w-full object-cover" />
+                      <ZoomableImage src={p.product_image} alt={p.product_name} className="h-full w-full object-cover" />
                     ) : (
                       <Package size={28} className="text-ink-muted" />
                     )}
@@ -209,7 +210,7 @@ export default function ProductsPage() {
                     <Tr key={p.product_id} onClick={() => openDetail(p)} className="cursor-pointer">
                       <Td>
                         {p.product_image ? (
-                          <img src={p.product_image} alt="" className="h-10 w-10 rounded-lg object-cover" />
+                          <ZoomableImage src={p.product_image} alt={p.product_name} className="h-10 w-10 rounded-lg object-cover" />
                         ) : (
                           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-ink/5 text-ink-muted">
                             <Package size={16} />
@@ -282,7 +283,7 @@ export default function ProductsPage() {
           <div>
             <div className="mb-4 flex items-center gap-3">
               {detailProduct.product_image ? (
-                <img src={detailProduct.product_image} alt="" className="h-20 w-20 shrink-0 rounded-lg object-cover" />
+                <ZoomableImage src={detailProduct.product_image} alt={detailProduct.product_name} className="h-20 w-20 shrink-0 rounded-lg object-cover" />
               ) : (
                 <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-lg bg-ink/5 text-ink-muted">
                   <Package size={24} />
