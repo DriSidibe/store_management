@@ -161,21 +161,13 @@ export const deleteUser = (id) => client.delete(`/auth/users/${id}/`)
 // --- Camera ---------------------------------------------------------------
 
 export const listCameras = () => client.get('/camera/cameras/').then((r) => r.data)
-export const getCamera = (id) => client.get(`/camera/cameras/${id}/`).then((r) => r.data)
 export const createCamera = (data) => client.post('/camera/cameras/', data).then((r) => r.data)
 export const updateCamera = (id, data) =>
   client.patch(`/camera/cameras/${id}/`, data).then((r) => r.data)
 export const deleteCamera = (id) => client.delete(`/camera/cameras/${id}/`)
-export const cameraStatus = (id) => client.get(`/camera/cameras/${id}/status/`).then((r) => r.data)
-export const flipCamera = (id, type, enabled) =>
-  client.post(`/camera/cameras/${id}/flip/`, { type, enabled }).then((r) => r.data)
-export const saveCameraStream = (id) =>
-  client.post(`/camera/cameras/${id}/save/`).then((r) => r.data)
-export const startAllCameras = () => client.post('/camera/start-all/').then((r) => r.data)
-export const stopAllCameras = () => client.post('/camera/stop-all/').then((r) => r.data)
 export const saveSnapshot = (cameraId, snapshot) =>
   client.post('/camera/save-snapshot/', { camera_id: cameraId, snapshot }).then((r) => r.data)
-export const listLocalRecordings = () => client.get('/camera/recordings/').then((r) => r.data)
+export const listLiveCameras = () => client.get('/camera/live/').then((r) => r.data)
 export const listMotionEyeCameras = () => client.get('/camera/motioneye/').then((r) => r.data)
 export const getRecordingSettings = () => client.get('/camera/recording-settings/').then((r) => r.data)
 export const updateRecordingSettings = (retentionDays) =>

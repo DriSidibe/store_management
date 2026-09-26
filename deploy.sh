@@ -115,6 +115,28 @@ server {
         alias $MEDIA_ROOT/;
     }
 
+    # Live camera streams: motionEye serves each camera on a local port and
+    # nginx relays it once the app has validated the signed link
+    # (see backend/camera/live.py).
+    location ~ ^/camera-live/(\d+)/$ {
+        set \$live_port \$1;
+        auth_request /camera-live-auth;
+        proxy_pass http://127.0.0.1:\$live_port/;
+        proxy_buffering off;
+        proxy_read_timeout 1h;
+        add_header X-Accel-Buffering no;  # also keeps the front proxy from buffering
+        add_header Cache-Control no-store;
+    }
+
+    location = /camera-live-auth {
+        internal;
+        proxy_pass http://${SERVICE_NAME}_app/api/camera/live-auth/;
+        proxy_pass_request_body off;
+        proxy_set_header Content-Length "";
+        proxy_set_header X-Original-URI \$request_uri;
+        proxy_set_header Host \$host;
+    }
+
     location /api/ {
         proxy_pass http://${SERVICE_NAME}_app;
         proxy_set_header Host \$host;

@@ -159,6 +159,8 @@ MEDIA_URL = '/media/'
 VIDEO_CACHE_DIR = env('VIDEO_CACHE_DIR', default=os.path.join(BASE_DIR, 'video-cache'))
 
 IS_PRODUCTION = env('IS_PRODUCTION')
+# motionEye's camera-<n>.conf files, read for the live view (camera.live).
+MOTIONEYE_CONF_DIR = env('MOTIONEYE_CONF_DIR', default='/etc/motioneye')
 # In production nginx serves signed camera files itself (see camera.views.ProtectedMediaView).
 PROTECTED_MEDIA_ACCEL = env.bool('PROTECTED_MEDIA_ACCEL', default=IS_PRODUCTION)
 

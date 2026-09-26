@@ -243,3 +243,56 @@ class RetentionTests(APITestCase):
             call_command('purge_recordings', stdout=devnull)
 
         self.assertEqual(self.days_left(self.media), ['2026-09-25', '2026-09-26'])
+
+
+class LiveCameraTests(APITestCase):
+    CONFS = {
+        'camera-1.conf': "# @enabled on\ncamera_name Bureau 1\nstream_port 8081\ntarget_dir /var/www/media/motioneye/Camera2\n",
+        'camera-2.conf': "# @enabled on\ncamera_name Bureau 2\nstream_port 9082\ntarget_dir /var/www/media/motioneye/Camera1\n",
+        'camera-3.conf': "# @enabled off\ncamera_name Garage\nstream_port 8083\ntarget_dir /var/www/media/motioneye/Camera3\n",
+        'motion.conf': "stream_port 7999\n",
+    }
+
+    def setUp(self):
+        self.conf = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.conf)
+        for name, content in self.CONFS.items():
+            with open(os.path.join(self.conf, name), 'w', encoding='utf-8') as f:
+                f.write(content)
+        settings = override_settings(MOTIONEYE_CONF_DIR=self.conf)
+        settings.enable()
+        self.addCleanup(settings.disable)
+
+    def auth(self, uri):
+        return self.client.get('/api/camera/live-auth/', HTTP_X_ORIGINAL_URI=uri).status_code
+
+    def test_employees_get_the_motioneye_cameras_with_signed_links(self):
+        self.assertEqual(self.client.get('/api/camera/live/').status_code, 401)
+        self.client.force_authenticate(User.objects.create_user('vendeur', password='x'))
+
+        cameras = self.client.get('/api/camera/live/').data
+
+        self.assertEqual([(c['name'], c['folder'], c['enabled']) for c in cameras],
+                         [('Bureau 1', 'Camera2', True), ('Bureau 2', 'Camera1', True), ('Garage', 'Camera3', False)])
+        self.assertTrue(cameras[0]['stream_url'].startswith('/camera-live/8081/?t='))
+        self.assertIsNone(cameras[2]['stream_url'])
+
+    def test_nginx_relays_only_valid_links_to_declared_stream_ports(self):
+        from django.core import signing
+        from camera.live import LIVE_SALT, signed_live_url
+
+        self.assertEqual(self.auth(signed_live_url(8081)), 204)
+        self.assertEqual(self.auth(signed_live_url(9082)), 204)
+        self.assertEqual(self.auth('/camera-live/8081/'), 403)
+        self.assertEqual(self.auth('/camera-live/8081/?t=forged'), 403)
+        other = signed_live_url(9082).split('?')[1]
+        self.assertEqual(self.auth(f'/camera-live/8081/?{other}'), 403)  # link of another camera
+        self.assertEqual(self.auth(signed_live_url(8765)), 403)  # motionEye admin UI, not a stream
+        self.assertEqual(self.auth(signed_live_url(7999)), 403)
+        self.assertEqual(self.auth(signed_live_url(8083)), 403)  # disabled camera
+        self.assertEqual(self.auth(''), 403)
+        with mock.patch('camera.live.LIVE_MAX_AGE', -1):
+            self.assertEqual(self.auth(signed_live_url(8081)), 403)  # expired
+        wrong_salt = signing.dumps(8081, salt='camera-feed')
+        self.assertEqual(self.auth(f'/camera-live/8081/?t={wrong_salt}'), 403)
+        self.assertNotEqual(LIVE_SALT, 'camera-feed')

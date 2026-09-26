@@ -7,6 +7,7 @@ import Button from '../components/ui/Button'
 import EmptyState from '../components/ui/EmptyState'
 import Modal from '../components/ui/Modal'
 import ZoomableImage from '../components/ui/ZoomableImage'
+import useCameraRotation from '../hooks/useCameraRotation'
 
 // "21-13-49.mp4" -> "21:13:49"
 const clipTime = (name) => name.replace(/\.mp4$/i, '').replace(/-/g, ':')
@@ -14,30 +15,6 @@ const clipTime = (name) => name.replace(/\.mp4$/i, '').replace(/-/g, ':')
 const formatSeconds = (s) => {
   const total = Math.floor(s || 0)
   return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`
-}
-
-// A camera mounted sideways or upside down stays that way: remember the
-// rotation per camera, in this browser.
-function useCameraRotation(cameraId) {
-  const key = `video-rotation:${cameraId}`
-  const [rotation, setRotation] = useState(() => {
-    try {
-      return Number(localStorage.getItem(key)) || 0
-    } catch {
-      return 0
-    }
-  })
-  const rotate = (delta) =>
-    setRotation((current) => {
-      const next = (current + delta + 360) % 360
-      try {
-        localStorage.setItem(key, String(next))
-      } catch {
-        /* private mode: rotation just isn't remembered */
-      }
-      return next
-    })
-  return [rotation, rotate]
 }
 
 // Errors of blob requests arrive as a Blob too: read the JSON message out of it.

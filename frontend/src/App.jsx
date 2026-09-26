@@ -8,12 +8,11 @@ import BillingPage from './pages/BillingPage'
 import CategoriesPage from './pages/CategoriesPage'
 import AddProductToBillPage from './pages/AddProductToBillPage'
 import CameraControlPage from './pages/CameraControlPage'
-import CameraLivePage from './pages/CameraLivePage'
-import CamerasListPage from './pages/CamerasListPage'
 import CustomerDetailPage from './pages/CustomerDetailPage'
 import CustomersPage from './pages/CustomersPage'
 import ExistingBillsPage from './pages/ExistingBillsPage'
 import FinalBillPage from './pages/FinalBillPage'
+import LiveCamerasPage from './pages/LiveCamerasPage'
 import LoginPage from './pages/LoginPage'
 import LowStockPage from './pages/LowStockPage'
 import MetricsPage from './pages/MetricsPage'
@@ -42,8 +41,7 @@ export default function App() {
           <Route path="/sell-product" element={<SellProductPage />} />
           <Route path="/selled-products" element={<SoldProductsPage />} />
           <Route path="/approvioning" element={<ApprovisionningPage />} />
-          <Route path="/cameras" element={<CamerasListPage />} />
-          <Route path="/cameras/:id" element={<CameraLivePage />} />
+          <Route path="/cameras" element={<LiveCamerasPage />} />
           <Route path="/low-stock" element={<LowStockPage />} />
 
           <Route element={<StaffRoute />}>

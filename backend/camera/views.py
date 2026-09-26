@@ -18,6 +18,7 @@ from .camera_stream import (
 from store.permissions import IsSuperUser
 from store.utils import log_activity
 
+from .live import live_request_allowed, motioneye_cameras, signed_live_url
 from .media_access import feed_token_is_valid, resolve_media_token, signed_media_url
 from .models import Camera, RecordingSettings
 from .retention import RETENTION_CHOICES, storage_summary
@@ -258,3 +259,27 @@ class RecordingSettingsView(APIView):
         log_activity(request, 'updated', 'RecordingSettings', f"Conservation des vidéos : {RETENTION_CHOICES[days]}",
                      f"avant : {previous} jours")
         return self.get(request)
+
+
+class LiveCamerasView(APIView):
+    """The motionEye cameras, each with a signed link to its live stream."""
+
+    def get(self, request):
+        return Response([
+            {
+                'id': c['id'], 'name': c['name'], 'folder': c['folder'], 'enabled': c['enabled'],
+                'stream_url': signed_live_url(c['port']) if c['enabled'] else None,
+            }
+            for c in motioneye_cameras()
+        ])
+
+
+class LiveAuthView(APIView):
+    """Called by nginx (auth_request) before relaying a live stream: the
+    original URI comes in the X-Original-URI header."""
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def get(self, request):
+        allowed = live_request_allowed(request.META.get('HTTP_X_ORIGINAL_URI'))
+        return HttpResponse(status=204 if allowed else 403)
