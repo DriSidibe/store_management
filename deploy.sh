@@ -89,7 +89,7 @@ server {
     gzip on;
     gzip_types text/css application/javascript application/json image/svg+xml application/manifest+json;
 
-    location = /favicon.ico { access_log off; log_not_found off; }
+    location = /favicon.ico { root $FRONTEND_DIR/dist; access_log off; log_not_found off; }
 
     location /static/ {
         alias $BACKEND_DIR/staticfiles/;
