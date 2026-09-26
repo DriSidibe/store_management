@@ -27,17 +27,50 @@ export default function SellProductPage() {
   const [submitting, setSubmitting] = useState(false)
   const [lastSaleId, setLastSaleId] = useState(null)
 
+  // Once the seller types a price (discount, bargaining...) it's no longer
+  // recomputed from the catalog price when the quantity changes.
+  const [priceEdited, setPriceEdited] = useState(false)
+
+  const catalogTotal = (p, quantity) => {
+    const total = Number(p.product_sp) * (Number(quantity) || 0)
+    return String(Math.round(total * 100) / 100)
+  }
+
   const handleSelectProduct = (p) => {
     setProduct(p)
-    setForm((f) => ({ ...f, product_name: p.product_name }))
+    setPriceEdited(false)
+    setForm((f) => {
+      const quantity = Math.min(Number(f.quantity) || 1, Math.max(p.product_quantity, 1))
+      return { ...f, product_name: p.product_name, quantity, price: catalogTotal(p, quantity) }
+    })
   }
 
   const clearProduct = () => {
     setProduct(null)
-    setForm((f) => ({ ...f, product_name: '' }))
+    setPriceEdited(false)
+    setForm((f) => ({ ...f, product_name: '', price: '' }))
   }
 
   const setField = (field) => (e) => setForm({ ...form, [field]: e.target.value })
+
+  const handleQuantityChange = (e) => {
+    const quantity = e.target.value
+    setForm((f) => ({
+      ...f,
+      quantity,
+      price: product && !priceEdited ? catalogTotal(product, quantity) : f.price,
+    }))
+  }
+
+  const handlePriceChange = (e) => {
+    setPriceEdited(true)
+    setForm((f) => ({ ...f, price: e.target.value }))
+  }
+
+  const resetToCatalogPrice = () => {
+    setPriceEdited(false)
+    setForm((f) => ({ ...f, price: catalogTotal(product, f.quantity) }))
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -132,12 +165,33 @@ export default function SellProductPage() {
                 min="1"
                 max={product ? product.product_quantity : undefined}
                 value={form.quantity}
-                onChange={setField('quantity')}
+                onChange={handleQuantityChange}
                 required
               />
             </Field>
-            <Field label="Prix total (FCFA)">
-              <Input type="number" min="0" value={form.price} onChange={setField('price')} required />
+            <Field
+              label="Prix total (FCFA)"
+              hint={
+                product && (
+                  <>
+                    Prix catalogue : {Number(product.product_sp)} FCFA l’unité
+                    {priceEdited && (
+                      <>
+                        {' · '}
+                        <button
+                          type="button"
+                          onClick={resetToCatalogPrice}
+                          className="font-medium text-brand hover:underline cursor-pointer"
+                        >
+                          Revenir au prix catalogue
+                        </button>
+                      </>
+                    )}
+                  </>
+                )
+              }
+            >
+              <Input type="number" min="0" step="any" value={form.price} onChange={handlePriceChange} required />
             </Field>
           </div>
 

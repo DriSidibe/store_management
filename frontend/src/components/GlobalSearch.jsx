@@ -43,7 +43,7 @@ export default function GlobalSearch() {
       <div className="relative">
         <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted" size={16} />
         <input
-          className="w-full rounded-lg border border-border bg-page py-2 pl-9 pr-3 text-sm text-ink placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-brand/40"
+          className="w-full rounded-lg border border-border bg-page py-2 pl-9 pr-3 text-base text-ink sm:text-sm placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-brand/40"
           placeholder="Rechercher produits, ventes, factures..."
           value={query}
           onChange={(e) => { setQuery(e.target.value); setOpen(true) }}
@@ -105,6 +105,8 @@ function SearchItem({ children, onClick }) {
   return (
     <button
       type="button"
+      // See ProductAutocomplete: keeps the iPhone keyboard from closing mid-tap.
+      onMouseDown={(e) => e.preventDefault()}
       onClick={onClick}
       className="block w-full px-3 py-1.5 text-left text-sm text-ink hover:bg-ink/5 cursor-pointer"
     >

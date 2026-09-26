@@ -44,7 +44,7 @@ export default function ProductAutocomplete({
       <div className="relative">
         <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted" size={16} />
         <input
-          className="w-full rounded-lg border border-border bg-page py-2 pl-9 pr-3 text-sm text-ink placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-brand/40"
+          className="w-full rounded-lg border border-border bg-page py-2 pl-9 pr-3 text-base text-ink sm:text-sm placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-brand/40"
           placeholder={placeholder}
           value={query}
           autoFocus={autoFocus}
@@ -65,6 +65,11 @@ export default function ProductAutocomplete({
             <button
               key={p.product_id}
               type="button"
+              // Keep focus in the input while tapping a result: on iPhone the blur
+              // closes the keyboard and shifts the page before the click lands.
+              // (mousedown, not pointerdown: blocking pointerdown cancels the tap
+              // entirely on iOS Safari.)
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => handleSelect(p)}
               className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm hover:bg-ink/5 cursor-pointer"
             >
