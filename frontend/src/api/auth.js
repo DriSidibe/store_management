@@ -6,12 +6,6 @@ export async function login(username, password) {
   return data
 }
 
-export async function register(username, password) {
-  const { data } = await client.post('/auth/register/', { username, password })
-  tokenStore.set(data.access, data.refresh)
-  return data.user
-}
-
 export async function logout() {
   const refresh = tokenStore.getRefresh()
   try {

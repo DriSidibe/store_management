@@ -25,18 +25,13 @@ export function AuthProvider({ children }) {
     setUser(await auth.fetchMe())
   }
 
-  const register = async (username, password) => {
-    const registeredUser = await auth.register(username, password)
-    setUser(registeredUser)
-  }
-
   const logout = async () => {
     await auth.logout()
     setUser(null)
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, logout }}>
       {children}
     </AuthContext.Provider>
   )

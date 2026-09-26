@@ -23,7 +23,6 @@ import MotionEyeViewerPage from './pages/MotionEyeViewerPage'
 import ProductsPage from './pages/ProductsPage'
 import ReceiptPage from './pages/ReceiptPage'
 import SellProductPage from './pages/SellProductPage'
-import SignupPage from './pages/SignupPage'
 import SoldProductsPage from './pages/SoldProductsPage'
 import StorefrontPage from './pages/StorefrontPage'
 import UpdateProductPage from './pages/UpdateProductPage'
@@ -34,7 +33,6 @@ export default function App() {
     <Routes>
       <Route path="/vitrine" element={<StorefrontPage />} />
       <Route path="/login" element={<LoginPage />} />
-      <Route path="/signup" element={<SignupPage />} />
 
       <Route element={<ProtectedRoute />}>
         <Route path="/receipt/:saleId" element={<ReceiptPage />} />

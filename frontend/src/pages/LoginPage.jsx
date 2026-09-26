@@ -1,6 +1,6 @@
 import { Store } from 'lucide-react'
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import Button from '../components/ui/Button'
 import Card from '../components/ui/Card'
@@ -60,7 +60,7 @@ export default function LoginPage() {
           </Button>
         </form>
         <p className="mt-4 text-center text-sm text-ink-muted">
-          Pas de compte ? <Link to="/signup" className="text-brand hover:underline">S'inscrire</Link>
+          Pas de compte ? Demande à un administrateur de t’en créer un.
         </p>
       </Card>
     </div>
