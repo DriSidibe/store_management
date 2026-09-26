@@ -2,7 +2,7 @@ import json
 import os
 
 from django.conf import settings
-from django.http import JsonResponse, StreamingHttpResponse
+from django.http import FileResponse, JsonResponse, StreamingHttpResponse
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -12,8 +12,11 @@ from .camera_stream import (
     RECORDINGS_DIR, CameraStream, camera_stream_, generate_thumbnail,
     reinitialize_camera_streams,
 )
+from store.permissions import IsSuperUser
+
 from .models import Camera
 from .serializers import CameraSerializer
+from .video import VideoUnavailable, playable_clip
 
 
 class CameraViewSet(viewsets.ModelViewSet):
@@ -152,8 +155,27 @@ class MotionEyeMediaView(APIView):
         folder = os.path.join(settings.MOTIONEYE_MEDIA_ROOT, camera_id, date)
         if not os.path.isdir(folder):
             return Response({'error': 'Not found'}, status=404)
-        files = os.listdir(folder)
+        files = sorted(os.listdir(folder))
         base_url = f"{settings.MEDIA_URL}motioneye/{camera_id}/{date}/"
         images = [base_url + f for f in files if f.lower().endswith((".png", ".jpg", ".jpeg", ".gif"))]
-        videos = [base_url + f for f in files if f.lower().endswith((".mp4", ".webm", ".ogg"))]
+        # Videos are played through MotionEyeVideoView (converted to H.264);
+        # motionEye's own .thumb files give a preview image for each clip.
+        videos = [
+            {'name': f, 'thumbnail': base_url + f + '.thumb' if f + '.thumb' in files else None}
+            for f in files if f.lower().endswith('.mp4')
+        ]
         return Response({'camera_id': camera_id, 'date': date, 'images': images, 'videos': videos})
+
+
+class MotionEyeVideoView(APIView):
+    """One motionEye clip in a browser-playable form (see camera.video)."""
+    permission_classes = [IsSuperUser]
+
+    def get(self, request, camera_id, date, filename):
+        try:
+            path = playable_clip(camera_id, date, filename)
+        except FileNotFoundError:
+            return Response({'detail': "Vidéo introuvable."}, status=status.HTTP_404_NOT_FOUND)
+        except VideoUnavailable as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        return FileResponse(open(path, 'rb'), content_type='video/mp4')

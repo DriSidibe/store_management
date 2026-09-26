@@ -16,4 +16,5 @@ urlpatterns = [
     path('motioneye/', views.MotionEyeCameraListView.as_view(), name='motioneye_cameras'),
     path('motioneye/<str:camera_id>/', views.MotionEyeDateListView.as_view(), name='motioneye_dates'),
     path('motioneye/<str:camera_id>/<str:date>/', views.MotionEyeMediaView.as_view(), name='motioneye_media'),
+    path('motioneye/<str:camera_id>/<str:date>/<str:filename>/video/', views.MotionEyeVideoView.as_view(), name='motioneye_video'),
 ]

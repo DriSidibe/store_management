@@ -181,3 +181,9 @@ export const listMotionEyeDates = (cameraId) =>
   client.get(`/camera/motioneye/${cameraId}/`).then((r) => r.data)
 export const listMotionEyeMedia = (cameraId, date) =>
   client.get(`/camera/motioneye/${cameraId}/${date}/`).then((r) => r.data)
+// The clip converted to H.264 by the server, as a Blob (the request needs the
+// auth header, which a plain <video src> can't send).
+export const fetchMotionEyeVideo = (cameraId, date, name) =>
+  client
+    .get(`/camera/motioneye/${cameraId}/${date}/${name}/video/`, { responseType: 'blob' })
+    .then((r) => r.data)

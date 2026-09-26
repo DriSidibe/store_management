@@ -154,6 +154,10 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 MEDIA_URL = '/media/'
 
+# Browser-playable copies of camera clips (see camera.video); kept out of
+# MEDIA_ROOT because /media is served publicly.
+VIDEO_CACHE_DIR = env('VIDEO_CACHE_DIR', default=os.path.join(BASE_DIR, 'video-cache'))
+
 IS_PRODUCTION = env('IS_PRODUCTION')
 
 if IS_PRODUCTION:
