@@ -114,6 +114,9 @@ class Sell(models.Model):
     product_image = models.ImageField(upload_to ='products_images/', blank=True, null=True, default=None)
     sold_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='sales')
     is_deleted = models.BooleanField(default=False)
+    # Units this sale has taken out of its product's stock, so edits and
+    # deletions give back exactly that. 0 for sales made before stock tracking.
+    stock_deducted = models.IntegerField(default=0)
 
     def productInfo(self):
         info = {'name':self.product.product_name, 'price': self.product.product_sp}

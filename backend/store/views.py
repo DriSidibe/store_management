@@ -3,6 +3,7 @@ import datetime
 import io
 import os
 
+from django.db import transaction
 from django.db.models import Count, ExpressionWrapper, F, FloatField, Q, Sum
 from django.http import FileResponse, HttpResponse
 from django.shortcuts import get_object_or_404
@@ -15,7 +16,7 @@ from reportlab.platypus import Image as ReportLabImage
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Table, TableStyle
 from rest_framework import generics, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.exceptions import NotFound
+from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -30,6 +31,7 @@ from .serializers import (
     CustomerSerializer, ProductSerializer, PublicProductSerializer, RavitaillementSerializer,
     SellSerializer, ShelfSerializer, SupplieEntranceSerializer, UnitySerializer,
 )
+from .stock import add_to_stock
 from .utils import generate_product_id, log_activity
 
 SEARCH_RESULT_LIMIT = 5
@@ -260,6 +262,11 @@ class SellViewSet(viewsets.ModelViewSet):
         log_activity(self.request, 'sold', 'Sell', f"{name} x{sale.quantity}", f"{sale.total_price} FCFA")
 
     def perform_update(self, serializer):
+        # Everyone may link a sale to a catalog product; editing the sale
+        # itself (quantity, price, customer, date...) is reserved to admins.
+        edited_fields = set(serializer.validated_data) - {'product'}
+        if edited_fields and not self.request.user.is_superuser:
+            raise PermissionDenied("Seul un administrateur peut modifier une vente.")
         had_product_id = serializer.instance.product_id
         sale = serializer.save()
         name = sale.product.product_name if sale.product else sale.product_name
@@ -268,11 +275,18 @@ class SellViewSet(viewsets.ModelViewSet):
         else:
             log_activity(self.request, 'updated', 'Sell', f"{name} x{sale.quantity}")
 
+    @transaction.atomic
     def perform_destroy(self, instance):
+        # Cancelling a sale: allowed to whoever recorded it, and to admins.
+        user = self.request.user
+        if not user.is_superuser and instance.sold_by_id != user.id:
+            raise PermissionDenied("Seul l'auteur de la vente ou un administrateur peut l'annuler.")
         name = instance.product.product_name if instance.product else instance.product_name
-        log_activity(self.request, 'deleted', 'Sell', f"{name} x{instance.quantity}")
+        log_activity(self.request, 'cancelled', 'Sell', f"{name} x{instance.quantity}")
+        add_to_stock(instance.product, instance.stock_deducted)
         instance.is_deleted = True
-        instance.save(update_fields=['is_deleted'])
+        instance.stock_deducted = 0
+        instance.save(update_fields=['is_deleted', 'stock_deducted'])
 
     @action(detail=False, methods=['get'])
     def daily(self, request):
@@ -362,9 +376,19 @@ class RavitaillementViewSet(viewsets.ModelViewSet):
         submitted with the request (same fields and checks as a new product)."""
         rav = self.get_object()
         if rav.product:
-            rav.is_deleted = True
-            rav.save(update_fields=['is_deleted'])
-            log_activity(request, 'received', 'Ravitaillement', rav.product.product_name)
+            # The ordered quantity is free text ("1 paquet"...), so the number
+            # of units actually received is asked for explicitly.
+            try:
+                received = int(request.data.get('received_quantity'))
+            except (TypeError, ValueError):
+                received = -1
+            if received < 0:
+                raise ValidationError({'received_quantity': "Indique la quantité reçue (0 ou plus)."})
+            with transaction.atomic():
+                add_to_stock(rav.product, received)
+                rav.is_deleted = True
+                rav.save(update_fields=['is_deleted'])
+            log_activity(request, 'received', 'Ravitaillement', rav.product.product_name, f"+{received} en stock")
             return Response(RavitaillementSerializer(rav).data)
 
         data = request.data.copy()

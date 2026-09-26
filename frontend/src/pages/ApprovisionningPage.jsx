@@ -6,6 +6,7 @@ import {
   listRavitaillement, listSupplierEntrances, productsLookup, promoteRavitaillementToProduct,
 } from '../api/api'
 import CatalogProductModal from '../components/CatalogProductModal'
+import Modal from '../components/ui/Modal'
 import Button from '../components/ui/Button'
 import Card from '../components/ui/Card'
 import { CardStack } from '../components/ui/CardList'
@@ -14,6 +15,11 @@ import { Table, Tbody, Td, Th, Thead, Tr } from '../components/ui/Table'
 import { extractErrorMessage, useToast } from '../toast/ToastContext'
 
 const today = () => new Date().toISOString().slice(0, 10)
+// The ordered quantity is free text ("5", "1 paquet"...): use its leading number, if any.
+const orderedUnits = (rav) => {
+  const n = parseInt(rav?.commanded_quantity, 10)
+  return Number.isNaN(n) ? undefined : n
+}
 const fileInputClass =
   'block w-full text-sm text-ink-secondary file:mr-3 file:rounded-lg file:border-0 file:bg-brand/10 file:px-3 file:py-2 file:text-sm file:font-medium file:text-brand hover:file:bg-brand/20'
 
@@ -31,6 +37,9 @@ export default function ApprovisionningPage() {
   const [ravImage, setRavImage] = useState(null)
   const [submittingRav, setSubmittingRav] = useState(false)
   const [promoteTarget, setPromoteTarget] = useState(null)
+  const [receiveTarget, setReceiveTarget] = useState(null)
+  const [receivedQuantity, setReceivedQuantity] = useState('')
+  const [receiving, setReceiving] = useState(false)
 
   const [supplierName, setSupplierName] = useState('')
   const [phone, setPhone] = useState('')
@@ -62,19 +71,37 @@ export default function ApprovisionningPage() {
     }
   }
 
-  // A request for a product already in the catalog is simply closed; one for a
-  // new product first asks for the catalog details (category, prices...).
-  const handleReceive = async (rav) => {
+  const refreshStock = () => {
+    queryClient.invalidateQueries({ queryKey: ['ravitaillement'] })
+    queryClient.invalidateQueries({ queryKey: ['products'] })
+    queryClient.invalidateQueries({ queryKey: ['products-lookup'] })
+    queryClient.invalidateQueries({ queryKey: ['low-stock'] })
+    queryClient.invalidateQueries({ queryKey: ['low-stock-count'] })
+  }
+
+  // Receiving a product already in the catalog asks how many units arrived and
+  // adds them to its stock; a new product first needs its catalog details.
+  const handleReceive = (rav) => {
     if (!rav.product) {
       setPromoteTarget(rav)
       return
     }
+    setReceivedQuantity(orderedUnits(rav) ?? '')
+    setReceiveTarget(rav)
+  }
+
+  const handleReceiveSubmit = async (e) => {
+    e.preventDefault()
+    setReceiving(true)
     try {
-      await promoteRavitaillementToProduct(rav.id)
-      toast.success('Approvisionnement réceptionné.')
-      queryClient.invalidateQueries({ queryKey: ['ravitaillement'] })
+      await promoteRavitaillementToProduct(receiveTarget.id, { received_quantity: receivedQuantity })
+      toast.success(`Approvisionnement réceptionné : +${receivedQuantity} en stock.`)
+      setReceiveTarget(null)
+      refreshStock()
     } catch (err) {
       toast.error(extractErrorMessage(err))
+    } finally {
+      setReceiving(false)
     }
   }
 
@@ -82,9 +109,7 @@ export default function ApprovisionningPage() {
     await promoteRavitaillementToProduct(promoteTarget.id, data)
     toast.success('Produit ajouté au catalogue.')
     setPromoteTarget(null)
-    queryClient.invalidateQueries({ queryKey: ['ravitaillement'] })
-    queryClient.invalidateQueries({ queryKey: ['products'] })
-    queryClient.invalidateQueries({ queryKey: ['products-lookup'] })
+    refreshStock()
   }
 
   const handleDelete = async (id) => {
@@ -300,11 +325,38 @@ export default function ApprovisionningPage() {
         </div>
       </div>
 
+      <Modal
+        open={!!receiveTarget}
+        onClose={() => setReceiveTarget(null)}
+        title={`Réceptionner « ${receiveTarget?.product_name_display || ''} »`}
+      >
+        <form className="space-y-4" onSubmit={handleReceiveSubmit}>
+          <p className="text-xs text-ink-muted">
+            Quantité commandée : {receiveTarget?.commanded_quantity || '-'}. Indique le nombre
+            d'unités effectivement reçues ; il sera ajouté au stock du produit.
+          </p>
+          <Field label="Quantité reçue">
+            <Input
+              type="number"
+              min="0"
+              value={receivedQuantity}
+              onChange={(e) => setReceivedQuantity(e.target.value)}
+              autoFocus
+              required
+            />
+          </Field>
+          <Button type="submit" disabled={receiving} className="w-full sm:w-auto">
+            {receiving ? 'Enregistrement...' : 'Ajouter au stock'}
+          </Button>
+        </form>
+      </Modal>
+
       <CatalogProductModal
         open={!!promoteTarget}
         onClose={() => setPromoteTarget(null)}
         onSubmit={handlePromoteSubmit}
         initialName={promoteTarget?.product_name_display || ''}
+        initialQuantity={orderedUnits(promoteTarget)}
         description="Ce produit n'est pas encore au catalogue. Renseigne ses détails pour le créer ; la demande d'approvisionnement sera ensuite clôturée."
         imageHint="Laisse vide pour garder l'image de la demande, si elle en a une."
       />

@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Printer, X } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -13,6 +13,7 @@ const today = () => new Date().toISOString().slice(0, 10)
 
 export default function SellProductPage() {
   const toast = useToast()
+  const queryClient = useQueryClient()
   const { data: customers } = useQuery({ queryKey: ['customers'], queryFn: () => listCustomers() })
   const [product, setProduct] = useState(null)
   const [form, setForm] = useState({
@@ -53,6 +54,11 @@ export default function SellProductPage() {
       })
       toast.success('Produit vendu avec succès !')
       setLastSaleId(sale.id)
+      if (product) {
+        queryClient.invalidateQueries({ queryKey: ['products'] })
+        queryClient.invalidateQueries({ queryKey: ['low-stock'] })
+        queryClient.invalidateQueries({ queryKey: ['low-stock-count'] })
+      }
       clearProduct()
       setForm({ product_name: '', quantity: 1, price: '', customer: '', date: today() })
       setImage(null)
@@ -120,8 +126,15 @@ export default function SellProductPage() {
           </Field>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="Quantité">
-              <Input type="number" min="1" value={form.quantity} onChange={setField('quantity')} required />
+            <Field label="Quantité" hint={product ? `En stock : ${product.product_quantity}` : undefined}>
+              <Input
+                type="number"
+                min="1"
+                max={product ? product.product_quantity : undefined}
+                value={form.quantity}
+                onChange={setField('quantity')}
+                required
+              />
             </Field>
             <Field label="Prix total (FCFA)">
               <Input type="number" min="0" value={form.price} onChange={setField('price')} required />

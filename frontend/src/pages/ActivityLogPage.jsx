@@ -16,6 +16,7 @@ const ACTION_VARIANTS = {
   created: 'success',
   updated: 'brand',
   deleted: 'danger',
+  cancelled: 'danger',
   sold: 'success',
   promoted: 'brand',
   received: 'success',

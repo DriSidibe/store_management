@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, Download, Link2, Printer, PlusCircle, Receipt, Trash2 } from 'lucide-react'
+import { AlertTriangle, Ban, Download, Link2, Pencil, Printer, PlusCircle, Receipt } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
@@ -10,7 +10,9 @@ import {
   promoteSaleToProduct,
   updateSale,
 } from '../api/api'
+import { useAuth } from '../auth/AuthContext'
 import CatalogProductModal from '../components/CatalogProductModal'
+import EditSaleModal from '../components/EditSaleModal'
 import ProductAutocomplete from '../components/ProductAutocomplete'
 import Badge from '../components/ui/Badge'
 import Button from '../components/ui/Button'
@@ -30,24 +32,34 @@ export default function SoldProductsPage() {
   const toast = useToast()
   const confirm = useConfirm()
   const queryClient = useQueryClient()
+  const { user } = useAuth()
   const [date, setDate] = useState(today())
   const [periodStart, setPeriodStart] = useState(today())
   const [periodEnd, setPeriodEnd] = useState(today())
   const [linkTarget, setLinkTarget] = useState(null)
   const [promoteTarget, setPromoteTarget] = useState(null)
+  const [editTarget, setEditTarget] = useState(null)
 
   const { data, isLoading } = useQuery({
     queryKey: ['sales-daily', date],
     queryFn: () => dailySales(date),
   })
 
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: ['sales-daily'] })
+  // Sales move stock, so product lists must refresh too.
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: ['sales-daily'] })
+    queryClient.invalidateQueries({ queryKey: ['products'] })
+    queryClient.invalidateQueries({ queryKey: ['low-stock'] })
+    queryClient.invalidateQueries({ queryKey: ['low-stock-count'] })
+  }
 
-  const handleDelete = async (id) => {
-    if (!(await confirm('Supprimer cette vente ?'))) return
+  const canCancel = (sale) => user?.is_superuser || (!!user && sale.sold_by_username === user.username)
+
+  const handleCancel = async (id) => {
+    if (!(await confirm('Annuler cette vente ? Si elle est liée à un produit, la quantité sera remise en stock.'))) return
     try {
       await deleteSale(id)
-      toast.success('Vente supprimée.')
+      toast.success('Vente annulée.')
       invalidate()
     } catch (err) {
       toast.error(extractErrorMessage(err))
@@ -145,6 +157,16 @@ export default function SoldProductsPage() {
                       >
                         <Printer size={15} />
                       </Link>
+                      {user?.is_superuser && (
+                        <button
+                          type="button"
+                          onClick={() => setEditTarget(s)}
+                          title="Modifier la vente"
+                          className="rounded-lg p-1.5 text-ink-secondary hover:bg-brand/10 hover:text-brand cursor-pointer"
+                        >
+                          <Pencil size={15} />
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => setLinkTarget(s)}
@@ -162,13 +184,16 @@ export default function SoldProductsPage() {
                           <PlusCircle size={15} />
                         </button>
                       )}
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(s.id)}
-                        className="rounded-lg p-1.5 text-ink-secondary hover:bg-danger/10 hover:text-danger cursor-pointer"
-                      >
-                        <Trash2 size={15} />
-                      </button>
+                      {canCancel(s) && (
+                        <button
+                          type="button"
+                          onClick={() => handleCancel(s.id)}
+                          title="Annuler la vente"
+                          className="rounded-lg p-1.5 text-ink-secondary hover:bg-danger/10 hover:text-danger cursor-pointer"
+                        >
+                          <Ban size={15} />
+                        </button>
+                      )}
                     </div>
                   </Card>
                 ))}
@@ -214,6 +239,16 @@ export default function SoldProductsPage() {
                             >
                               <Printer size={15} />
                             </Link>
+                            {user?.is_superuser && (
+                              <button
+                                type="button"
+                                onClick={() => setEditTarget(s)}
+                                title="Modifier la vente"
+                                className="rounded-lg p-1.5 text-ink-secondary hover:bg-brand/10 hover:text-brand cursor-pointer"
+                              >
+                                <Pencil size={15} />
+                              </button>
+                            )}
                             <button
                               type="button"
                               onClick={() => setLinkTarget(s)}
@@ -232,13 +267,16 @@ export default function SoldProductsPage() {
                                 <PlusCircle size={15} />
                               </button>
                             )}
-                            <button
-                              type="button"
-                              onClick={() => handleDelete(s.id)}
-                              className="rounded-lg p-1.5 text-ink-secondary hover:bg-danger/10 hover:text-danger cursor-pointer"
-                            >
-                              <Trash2 size={15} />
-                            </button>
+                            {canCancel(s) && (
+                              <button
+                                type="button"
+                                onClick={() => handleCancel(s.id)}
+                                title="Annuler la vente"
+                                className="rounded-lg p-1.5 text-ink-secondary hover:bg-danger/10 hover:text-danger cursor-pointer"
+                              >
+                                <Ban size={15} />
+                              </button>
+                            )}
                           </div>
                         </Td>
                       </Tr>
@@ -258,7 +296,7 @@ export default function SoldProductsPage() {
       >
         <p className="mb-3 text-xs text-ink-muted">
           Recherche le produit déjà enregistré correspondant à cette vente. Cela mettra aussi à jour
-          le calcul de bénéfice de cette vente.
+          le calcul de bénéfice de cette vente, et la quantité vendue sera retirée de son stock.
         </p>
         <ProductAutocomplete
           placeholder="Tape le nom ou le code du produit..."
@@ -266,6 +304,15 @@ export default function SoldProductsPage() {
           autoFocus
         />
       </Modal>
+
+      <EditSaleModal
+        sale={editTarget}
+        onClose={() => setEditTarget(null)}
+        onSaved={() => {
+          setEditTarget(null)
+          invalidate()
+        }}
+      />
 
       <CatalogProductModal
         open={!!promoteTarget}

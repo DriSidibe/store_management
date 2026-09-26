@@ -1,7 +1,7 @@
 from django.contrib.auth.models import User
 from rest_framework.test import APITestCase
 
-from .models import Category, Product, Ravitaillement, Unity
+from .models import Category, Product, Ravitaillement, Sell, Unity
 
 
 class CategoryApiTests(APITestCase):
@@ -85,19 +85,35 @@ class RavitaillementReceiveTests(APITestCase):
     def url(self, rav):
         return f'/api/ravitaillement/{rav.id}/promote-to-product/'
 
-    def test_request_for_existing_product_is_just_closed(self):
+    def existing_product_request(self):
         product = Product.objects.create(
-            product_id='p1', product_name='Ciment', product_unity=self.unit, product_quantity=1,
+            product_id='p1', product_name='Ciment', product_unity=self.unit, product_quantity=4,
             product_company='X', product_cp=1, product_sp=1,
         )
-        rav = Ravitaillement.objects.create(product=product, commanded_quantity='10')
+        return product, Ravitaillement.objects.create(product=product, commanded_quantity='1 paquet')
 
-        response = self.client.post(self.url(rav))
+    def test_received_units_are_added_to_an_existing_product(self):
+        product, rav = self.existing_product_request()
+
+        response = self.client.post(self.url(rav), {'received_quantity': 10})
 
         self.assertEqual(response.status_code, 200)
+        product.refresh_from_db()
+        self.assertEqual(product.product_quantity, 14)
         rav.refresh_from_db()
         self.assertTrue(rav.is_deleted)
         self.assertEqual(Product.objects.count(), 1)
+
+    def test_existing_product_requires_a_valid_received_quantity(self):
+        product, rav = self.existing_product_request()
+
+        for bad in ({}, {'received_quantity': 'abc'}, {'received_quantity': -2}):
+            self.assertEqual(self.client.post(self.url(rav), bad).status_code, 400)
+
+        product.refresh_from_db()
+        self.assertEqual(product.product_quantity, 4)
+        rav.refresh_from_db()
+        self.assertFalse(rav.is_deleted)
 
     def test_new_product_requires_the_catalog_details(self):
         rav = Ravitaillement.objects.create(product_name='Fer de 8', commanded_quantity='50')
@@ -123,3 +139,121 @@ class RavitaillementReceiveTests(APITestCase):
         self.assertEqual((product.product_name, product.product_category), ('Fer De 8', self.category))
         rav.refresh_from_db()
         self.assertTrue(rav.is_deleted)
+
+
+class SaleStockTests(APITestCase):
+    def setUp(self):
+        self.client.force_authenticate(User.objects.create_superuser('admin', password='x'))
+        unit = Unity.objects.create(name='Sac')
+        common = dict(product_unity=unit, product_company='X', product_cp=1, product_sp=1)
+        self.cement = Product.objects.create(product_id='p1', product_name='Ciment', product_quantity=10, **common)
+        self.iron = Product.objects.create(product_id='p2', product_name='Fer', product_quantity=5, **common)
+
+    def sell(self, **data):
+        return self.client.post('/api/sales/', {'sell_date': '2026-09-26T10:00', 'total_price': 1000, **data})
+
+    def stock(self, product):
+        product.refresh_from_db()
+        return product.product_quantity
+
+    def test_selling_a_product_decreases_its_stock(self):
+        response = self.sell(product=self.cement.id, quantity=3)
+
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertEqual(self.stock(self.cement), 7)
+
+    def test_sale_beyond_stock_is_refused_and_nothing_is_recorded(self):
+        response = self.sell(product=self.cement.id, quantity=11)
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('il en reste 10', str(response.data['quantity']))
+        self.assertEqual(self.stock(self.cement), 10)
+        self.assertFalse(Sell.objects.exists())
+
+    def test_off_catalog_sale_touches_no_stock(self):
+        response = self.sell(product_name='Clou', quantity=50)
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual((self.stock(self.cement), self.stock(self.iron)), (10, 5))
+
+    def test_editing_quantity_adjusts_stock_by_the_difference(self):
+        sale_id = self.sell(product=self.cement.id, quantity=3).data['id']
+
+        self.client.patch(f'/api/sales/{sale_id}/', {'quantity': 5})
+        self.assertEqual(self.stock(self.cement), 5)
+        self.client.patch(f'/api/sales/{sale_id}/', {'quantity': 1})
+        self.assertEqual(self.stock(self.cement), 9)
+
+    def test_moving_or_linking_a_sale_moves_the_stock(self):
+        sale_id = self.sell(product=self.cement.id, quantity=3).data['id']
+        self.client.patch(f'/api/sales/{sale_id}/', {'product': self.iron.id})
+        self.assertEqual((self.stock(self.cement), self.stock(self.iron)), (10, 2))
+
+        adhoc_id = self.sell(product_name='Fer de 8', quantity=2).data['id']
+        self.client.patch(f'/api/sales/{adhoc_id}/', {'product': self.iron.id})
+        self.assertEqual(self.stock(self.iron), 0)
+
+    def test_deleting_a_sale_gives_the_units_back(self):
+        sale_id = self.sell(product=self.cement.id, quantity=4).data['id']
+
+        self.assertEqual(self.client.delete(f'/api/sales/{sale_id}/').status_code, 204)
+
+        self.assertEqual(self.stock(self.cement), 10)
+
+    def test_sales_from_before_stock_tracking_are_left_alone(self):
+        legacy = Sell.objects.create(product=self.cement, quantity=3, total_price=1000, sell_date='2026-01-01T10:00Z')
+
+        self.client.patch(f'/api/sales/{legacy.id}/', {'quantity': 4})
+        self.client.delete(f'/api/sales/{legacy.id}/')
+
+        self.assertEqual(self.stock(self.cement), 10)
+
+
+class SaleEditPermissionTests(APITestCase):
+    def setUp(self):
+        unit = Unity.objects.create(name='Sac')
+        self.product = Product.objects.create(
+            product_id='p1', product_name='Ciment', product_quantity=10, product_unity=unit,
+            product_company='X', product_cp=1, product_sp=1,
+        )
+        self.sale = Sell.objects.create(product_name='Ciment', quantity=2, total_price=1000, sell_date='2026-09-26T10:00Z')
+        self.url = f'/api/sales/{self.sale.id}/'
+
+    def test_seller_can_link_a_sale_but_not_edit_it(self):
+        self.client.force_authenticate(User.objects.create_user('vendeur', password='x'))
+
+        self.assertEqual(self.client.patch(self.url, {'total_price': 1}).status_code, 403)
+        self.assertEqual(self.client.patch(self.url, {'product': self.product.id}).status_code, 200)
+
+    def test_admin_can_edit_a_sale(self):
+        self.client.force_authenticate(User.objects.create_superuser('admin', password='x'))
+
+        response = self.client.patch(self.url, {'total_price': 1500, 'customer_name': 'Awa', 'quantity': 3})
+
+        self.assertEqual(response.status_code, 200, response.data)
+        self.sale.refresh_from_db()
+        self.assertEqual((float(self.sale.total_price), self.sale.customer_name, self.sale.quantity), (1500.0, 'Awa', 3))
+
+
+class SaleCancelPermissionTests(APITestCase):
+    def setUp(self):
+        self.author = User.objects.create_user('auteur', password='x')
+        self.sale = Sell.objects.create(
+            product_name='Ciment', quantity=1, total_price=1000, sell_date='2026-09-26T10:00Z', sold_by=self.author,
+        )
+        self.url = f'/api/sales/{self.sale.id}/'
+
+    def cancel_as(self, user):
+        self.client.force_authenticate(user)
+        return self.client.delete(self.url).status_code
+
+    def test_another_seller_cannot_cancel(self):
+        self.assertEqual(self.cancel_as(User.objects.create_user('autre', password='x')), 403)
+        self.sale.refresh_from_db()
+        self.assertFalse(self.sale.is_deleted)
+
+    def test_author_can_cancel(self):
+        self.assertEqual(self.cancel_as(self.author), 204)
+
+    def test_admin_can_cancel_any_sale(self):
+        self.assertEqual(self.cancel_as(User.objects.create_superuser('admin', password='x')), 204)

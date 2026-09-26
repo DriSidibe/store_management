@@ -52,6 +52,8 @@ export const createSale = (data) => client.post('/sales/', toFormData(data)).the
 export const updateSale = (id, data) =>
   client.patch(`/sales/${id}/`, toFormData(data)).then((r) => r.data)
 export const deleteSale = (id) => client.delete(`/sales/${id}/`)
+// JSON (not form data) so a cleared field can be sent as null.
+export const editSale = (id, data) => client.patch(`/sales/${id}/`, data).then((r) => r.data)
 export const promoteSaleToProduct = (id, data) =>
   client.post(`/sales/${id}/promote-to-product/`, toFormData(data)).then((r) => r.data)
 

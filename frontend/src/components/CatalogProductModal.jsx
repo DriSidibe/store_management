@@ -24,7 +24,9 @@ const initialForm = {
 // Collects the details needed to turn something that isn't in the catalog yet
 // (an ad-hoc sale, a supply request) into a real product. `onSubmit` receives
 // the form data and should throw on failure; the modal reports the error.
-export default function CatalogProductModal({ open, onClose, onSubmit, initialName = '', description, imageHint }) {
+export default function CatalogProductModal({
+  open, onClose, onSubmit, initialName = '', initialQuantity, description, imageHint,
+}) {
   const toast = useToast()
   const [form, setForm] = useState(initialForm)
   const [image, setImage] = useState(null)
@@ -35,9 +37,13 @@ export default function CatalogProductModal({ open, onClose, onSubmit, initialNa
 
   useEffect(() => {
     if (!open) return
-    setForm({ ...initialForm, product_name: initialName })
+    setForm({
+      ...initialForm,
+      product_name: initialName,
+      product_quantity: initialQuantity ?? initialForm.product_quantity,
+    })
     setImage(null)
-  }, [open, initialName])
+  }, [open, initialName, initialQuantity])
 
   const setField = (field) => (e) => setForm({ ...form, [field]: e.target.value })
 

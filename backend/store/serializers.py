@@ -1,9 +1,11 @@
+from django.db import transaction
 from rest_framework import serializers
 
 from .models import (
     ActivityLog, Bill, BillItems, Category, Customer, Product, Ravitaillement, Sell, Shelf,
     SupplieEntrance, Unity,
 )
+from .stock import add_to_stock, remove_from_stock
 from .utils import build_product_id, generate_product_id, process_product_image
 
 
@@ -183,6 +185,12 @@ class SellSerializer(serializers.ModelSerializer):
     def get_sold_by_username(self, obj):
         return obj.sold_by.username if obj.sold_by else None
 
+    def validate_quantity(self, value):
+        if value is not None and value < 0:
+            raise serializers.ValidationError("La quantité ne peut pas être négative.")
+        return value
+
+    @transaction.atomic
     def create(self, validated_data):
         image = validated_data.pop('product_image', None)
         quantity = validated_data.get('quantity') or 0
@@ -190,22 +198,45 @@ class SellSerializer(serializers.ModelSerializer):
         validated_data['unit_price'] = (
             float(total_price) / float(quantity) if quantity else 0
         )
+        product = validated_data.get('product')
+        remove_from_stock(product, quantity)
+        validated_data['stock_deducted'] = quantity if product else 0
         sell = Sell.objects.create(**validated_data)
         if image:
             sell.product_image.save(image.name, process_product_image(image), save=True)
         return sell
 
+    @transaction.atomic
     def update(self, instance, validated_data):
         image = validated_data.pop('product_image', None)
+        old_product, old_deducted = instance.product, instance.stock_deducted
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
-        quantity = float(instance.quantity or 0)
+        quantity = instance.quantity or 0
+        self._rebalance_stock(instance, old_product, old_deducted, quantity)
         if quantity:
-            instance.unit_price = float(instance.total_price or 0) / quantity
+            instance.unit_price = float(instance.total_price or 0) / float(quantity)
         if image:
             instance.product_image.save(image.name, process_product_image(image), save=False)
         instance.save()
         return instance
+
+    @staticmethod
+    def _rebalance_stock(sale, old_product, old_deducted, quantity):
+        """Moving a sale to another product (e.g. linking an off-catalog sale)
+        gives the old product its units back and takes them from the new one.
+        Changing the quantity of a tracked sale adjusts by the difference;
+        sales from before stock tracking (nothing deducted) are left alone."""
+        if sale.product_id != (old_product.pk if old_product else None):
+            add_to_stock(old_product, old_deducted)
+            remove_from_stock(sale.product, quantity)
+            sale.stock_deducted = quantity if sale.product else 0
+        elif old_deducted and quantity != old_deducted:
+            if quantity > old_deducted:
+                remove_from_stock(sale.product, quantity - old_deducted)
+            else:
+                add_to_stock(sale.product, old_deducted - quantity)
+            sale.stock_deducted = quantity
 
 
 class RavitaillementSerializer(serializers.ModelSerializer):
