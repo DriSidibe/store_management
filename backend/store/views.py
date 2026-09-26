@@ -356,19 +356,25 @@ class RavitaillementViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'], url_path='promote-to-product')
     def promote_to_product(self, request, pk=None):
-        """Turns a pending supply request into a real Product and removes
-        it from the approvisionnement list."""
+        """Receives a pending supply request and removes it from the
+        approvisionnement list. A request for a product already in the catalog
+        is just closed; otherwise the product is created from the catalog form
+        submitted with the request (same fields and checks as a new product)."""
         rav = self.get_object()
-        unity = Unity.objects.first()
-        product = Product.objects.create(
-            product_id=generate_product_id('A', '1'),
-            product_name=rav.product_name,
-            product_unity=unity,
-            product_quantity=1,
-            product_cp=1.0,
-            product_sp=1.0,
-            product_image=rav.image,
-        )
+        if rav.product:
+            rav.is_deleted = True
+            rav.save(update_fields=['is_deleted'])
+            log_activity(request, 'received', 'Ravitaillement', rav.product.product_name)
+            return Response(RavitaillementSerializer(rav).data)
+
+        data = request.data.copy()
+        data.setdefault('product_name', rav.product_name)
+        serializer = ProductSerializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        product = serializer.save()
+        if not product.product_image and rav.image:
+            product.product_image = rav.image
+            product.save(update_fields=['product_image'])
         rav.is_deleted = True
         rav.save(update_fields=['is_deleted'])
         log_activity(request, 'promoted', 'Ravitaillement', f"{product.product_id} ({product.product_name})")

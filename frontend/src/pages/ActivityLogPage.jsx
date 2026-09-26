@@ -10,7 +10,7 @@ import { Select } from '../components/ui/Form'
 import { TableSkeleton } from '../components/ui/Skeleton'
 import { Table, Tbody, Td, Th, Thead, Tr } from '../components/ui/Table'
 
-const MODELS = ['Product', 'Sell', 'Ravitaillement', 'Bill', 'BillItems', 'Customer', 'User']
+const MODELS = ['Product', 'Category', 'Sell', 'Ravitaillement', 'Bill', 'BillItems', 'Customer', 'User']
 
 const ACTION_VARIANTS = {
   created: 'success',
@@ -18,6 +18,7 @@ const ACTION_VARIANTS = {
   deleted: 'danger',
   sold: 'success',
   promoted: 'brand',
+  received: 'success',
   billed: 'success',
 }
 

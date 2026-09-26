@@ -1,7 +1,7 @@
 from django.contrib.auth.models import User
 from rest_framework.test import APITestCase
 
-from .models import Category, Product, Unity
+from .models import Category, Product, Ravitaillement, Unity
 
 
 class CategoryApiTests(APITestCase):
@@ -74,3 +74,52 @@ class CategoryApiTests(APITestCase):
         self.assertIn('category', response.data)
         self.assertFalse(Category.objects.exists())
         self.assertFalse(Product.objects.exists())
+
+
+class RavitaillementReceiveTests(APITestCase):
+    def setUp(self):
+        self.client.force_authenticate(User.objects.create_user('chef', password='x', is_staff=True))
+        self.unit = Unity.objects.create(name='Sac')
+        self.category = Category.objects.create(name='Maçonnerie')
+
+    def url(self, rav):
+        return f'/api/ravitaillement/{rav.id}/promote-to-product/'
+
+    def test_request_for_existing_product_is_just_closed(self):
+        product = Product.objects.create(
+            product_id='p1', product_name='Ciment', product_unity=self.unit, product_quantity=1,
+            product_company='X', product_cp=1, product_sp=1,
+        )
+        rav = Ravitaillement.objects.create(product=product, commanded_quantity='10')
+
+        response = self.client.post(self.url(rav))
+
+        self.assertEqual(response.status_code, 200)
+        rav.refresh_from_db()
+        self.assertTrue(rav.is_deleted)
+        self.assertEqual(Product.objects.count(), 1)
+
+    def test_new_product_requires_the_catalog_details(self):
+        rav = Ravitaillement.objects.create(product_name='Fer de 8', commanded_quantity='50')
+
+        response = self.client.post(self.url(rav))
+
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(Product.objects.exists())
+        rav.refresh_from_db()
+        self.assertFalse(rav.is_deleted)
+
+    def test_new_product_is_created_with_its_category_and_request_closed(self):
+        rav = Ravitaillement.objects.create(product_name='fer de 8', commanded_quantity='50')
+
+        response = self.client.post(self.url(rav), {
+            'product_id_etg': 'B2', 'product_id_cas': '4', 'product_unity': self.unit.id,
+            'product_quantity': 50, 'product_company': 'SOTACI', 'product_cp': 2500,
+            'product_sp': 3000, 'category': 'Maçonnerie',
+        })
+
+        self.assertEqual(response.status_code, 201, response.data)
+        product = Product.objects.get()
+        self.assertEqual((product.product_name, product.product_category), ('Fer De 8', self.category))
+        rav.refresh_from_db()
+        self.assertTrue(rav.is_deleted)

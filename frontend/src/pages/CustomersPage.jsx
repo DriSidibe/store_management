@@ -7,7 +7,7 @@ import Button from '../components/ui/Button'
 import Card from '../components/ui/Card'
 import { CardStack } from '../components/ui/CardList'
 import EmptyState from '../components/ui/EmptyState'
-import { Field, Input } from '../components/ui/Form'
+import { Field, Input, RequiredLegend } from '../components/ui/Form'
 import { TableSkeleton } from '../components/ui/Skeleton'
 import { Table, Tbody, Td, Th, Thead, Tr } from '../components/ui/Table'
 import { useConfirm } from '../confirm/ConfirmContext'
@@ -58,6 +58,7 @@ export default function CustomersPage() {
       <div className="grid min-w-0 gap-6 lg:grid-cols-[320px_1fr]">
         <Card className="h-fit min-w-0">
           <h2 className="mb-3 text-sm font-semibold text-ink">Ajouter un client</h2>
+          <RequiredLegend className="-mt-1 mb-3" />
           <form className="space-y-4" onSubmit={handleSubmit}>
             <Field label="Nom">
               <Input value={name} onChange={(e) => setName(e.target.value)} required />

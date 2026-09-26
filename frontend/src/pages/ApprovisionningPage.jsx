@@ -5,10 +5,11 @@ import {
   createRavitaillement, createSupplierEntrance, deleteRavitaillement, downloadReport,
   listRavitaillement, listSupplierEntrances, productsLookup, promoteRavitaillementToProduct,
 } from '../api/api'
+import CatalogProductModal from '../components/CatalogProductModal'
 import Button from '../components/ui/Button'
 import Card from '../components/ui/Card'
 import { CardStack } from '../components/ui/CardList'
-import { Field, Input, Select } from '../components/ui/Form'
+import { Field, Input, RequiredLegend, Select } from '../components/ui/Form'
 import { Table, Tbody, Td, Th, Thead, Tr } from '../components/ui/Table'
 import { extractErrorMessage, useToast } from '../toast/ToastContext'
 
@@ -29,6 +30,7 @@ export default function ApprovisionningPage() {
   const [quantity, setQuantity] = useState('')
   const [ravImage, setRavImage] = useState(null)
   const [submittingRav, setSubmittingRav] = useState(false)
+  const [promoteTarget, setPromoteTarget] = useState(null)
 
   const [supplierName, setSupplierName] = useState('')
   const [phone, setPhone] = useState('')
@@ -60,14 +62,29 @@ export default function ApprovisionningPage() {
     }
   }
 
-  const handlePromote = async (id) => {
+  // A request for a product already in the catalog is simply closed; one for a
+  // new product first asks for the catalog details (category, prices...).
+  const handleReceive = async (rav) => {
+    if (!rav.product) {
+      setPromoteTarget(rav)
+      return
+    }
     try {
-      await promoteRavitaillementToProduct(id)
-      toast.success('Opération éffectuée avec succès !')
+      await promoteRavitaillementToProduct(rav.id)
+      toast.success('Approvisionnement réceptionné.')
       queryClient.invalidateQueries({ queryKey: ['ravitaillement'] })
     } catch (err) {
       toast.error(extractErrorMessage(err))
     }
+  }
+
+  const handlePromoteSubmit = async (data) => {
+    await promoteRavitaillementToProduct(promoteTarget.id, data)
+    toast.success('Produit ajouté au catalogue.')
+    setPromoteTarget(null)
+    queryClient.invalidateQueries({ queryKey: ['ravitaillement'] })
+    queryClient.invalidateQueries({ queryKey: ['products'] })
+    queryClient.invalidateQueries({ queryKey: ['products-lookup'] })
   }
 
   const handleDelete = async (id) => {
@@ -122,6 +139,7 @@ export default function ApprovisionningPage() {
         <div className="min-w-0 space-y-6">
           <Card>
             <h2 className="mb-3 text-sm font-semibold text-ink">Demander un approvisionnement</h2>
+            <RequiredLegend className="-mt-1 mb-3" />
             <form className="space-y-4" onSubmit={handleAddRav}>
               <Field label="Produit existant">
                 <Select value={pk} onChange={(e) => setPk(e.target.value)}>
@@ -163,7 +181,7 @@ export default function ApprovisionningPage() {
                   <div className="flex shrink-0 gap-1.5">
                     <button
                       type="button"
-                      onClick={() => handlePromote(r.id)}
+                      onClick={() => handleReceive(r)}
                       className="rounded-lg p-1.5 text-ink-secondary hover:bg-success/10 hover:text-success-text cursor-pointer"
                     >
                       <Check size={15} />
@@ -195,7 +213,7 @@ export default function ApprovisionningPage() {
                         <div className="flex justify-end gap-1.5">
                           <button
                             type="button"
-                            onClick={() => handlePromote(r.id)}
+                            onClick={() => handleReceive(r)}
                             title="Réceptionner"
                             className="rounded-lg p-1.5 text-ink-secondary hover:bg-success/10 hover:text-success-text cursor-pointer"
                           >
@@ -225,6 +243,7 @@ export default function ApprovisionningPage() {
         <div className="min-w-0 space-y-6">
           <Card>
             <h2 className="mb-3 text-sm font-semibold text-ink">Ajouter une entrée fournisseur</h2>
+            <RequiredLegend className="-mt-1 mb-3" />
             <form className="space-y-4" onSubmit={handleAddEntrance}>
               <Field label="Nom du fournisseur">
                 <Input value={supplierName} onChange={(e) => setSupplierName(e.target.value)} required />
@@ -233,7 +252,7 @@ export default function ApprovisionningPage() {
                 <Input value={phone} onChange={(e) => setPhone(e.target.value)} />
               </Field>
               <Field label="Date">
-                <Input type="date" value={entranceDate} onChange={(e) => setEntranceDate(e.target.value)} />
+                <Input type="date" value={entranceDate} onChange={(e) => setEntranceDate(e.target.value)} required />
               </Field>
               <Field label="Image (optionnel)">
                 <input type="file" accept="image/*" className={fileInputClass} onChange={(e) => setEntranceImage(e.target.files[0])} />
@@ -280,6 +299,15 @@ export default function ApprovisionningPage() {
           </Card>
         </div>
       </div>
+
+      <CatalogProductModal
+        open={!!promoteTarget}
+        onClose={() => setPromoteTarget(null)}
+        onSubmit={handlePromoteSubmit}
+        initialName={promoteTarget?.product_name_display || ''}
+        description="Ce produit n'est pas encore au catalogue. Renseigne ses détails pour le créer ; la demande d'approvisionnement sera ensuite clôturée."
+        imageHint="Laisse vide pour garder l'image de la demande, si elle en a une."
+      />
     </div>
   )
 }

@@ -6,7 +6,7 @@ import CategorySelect from '../components/CategorySelect'
 import ProductAutocomplete from '../components/ProductAutocomplete'
 import Button from '../components/ui/Button'
 import Card from '../components/ui/Card'
-import { Field, Input, Select, Textarea } from '../components/ui/Form'
+import { Field, Input, RequiredLegend, Select, Textarea } from '../components/ui/Form'
 import { extractErrorMessage, useToast } from '../toast/ToastContext'
 
 function toForm(p) {
@@ -89,6 +89,7 @@ export default function UpdateProductPage() {
 
       {product && form && (
         <Card className="max-w-2xl">
+          <RequiredLegend className="mb-4" />
           <form className="space-y-4" onSubmit={handleSubmit}>
             <div className="flex items-center gap-3">
               {product.product_image ? (
@@ -104,7 +105,7 @@ export default function UpdateProductPage() {
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label="Étagère">
-                <Select value={form.product_id_etg} onChange={setField('product_id_etg')}>
+                <Select value={form.product_id_etg} onChange={setField('product_id_etg')} required>
                   {shelves?.results?.map((s) => (
                     <option key={s.id} value={s.name}>{s.name}</option>
                   ))}
@@ -125,18 +126,18 @@ export default function UpdateProductPage() {
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label="Unité">
-                <Select value={form.product_unity} onChange={setField('product_unity')}>
+                <Select value={form.product_unity} onChange={setField('product_unity')} required>
                   {units?.results?.map((u) => (
                     <option key={u.id} value={u.id}>{u.name}</option>
                   ))}
                 </Select>
               </Field>
               <Field label="Société">
-                <Input value={form.product_company} onChange={setField('product_company')} />
+                <Input value={form.product_company} onChange={setField('product_company')} required />
               </Field>
             </div>
 
-            <CategorySelect value={form.category} onChange={setField('category')} />
+            <CategorySelect value={form.category} onChange={setField('category')} required />
 
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
               <Field label="Quantité">

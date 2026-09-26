@@ -6,7 +6,7 @@ import { createSale, listCustomers } from '../api/api'
 import ProductAutocomplete from '../components/ProductAutocomplete'
 import Button from '../components/ui/Button'
 import Card from '../components/ui/Card'
-import { Field, Input } from '../components/ui/Form'
+import { Field, Input, RequiredLegend } from '../components/ui/Form'
 import { extractErrorMessage, useToast } from '../toast/ToastContext'
 
 const today = () => new Date().toISOString().slice(0, 10)
@@ -78,6 +78,7 @@ export default function SellProductPage() {
       )}
 
       <Card className="max-w-xl">
+        <RequiredLegend className="mb-4" />
         <form className="space-y-4" onSubmit={handleSubmit}>
           <Field label="Produit (nom ou code, optionnel)">
             {product ? (
@@ -135,7 +136,7 @@ export default function SellProductPage() {
               </datalist>
             </Field>
             <Field label="Date">
-              <Input type="date" value={form.date} onChange={setField('date')} />
+              <Input type="date" value={form.date} onChange={setField('date')} required />
             </Field>
           </div>
 

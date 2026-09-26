@@ -63,8 +63,12 @@ export const createRavitaillement = (data) =>
 export const updateRavitaillement = (id, data) =>
   client.patch(`/ravitaillement/${id}/`, toFormData(data)).then((r) => r.data)
 export const deleteRavitaillement = (id) => client.delete(`/ravitaillement/${id}/`)
-export const promoteRavitaillementToProduct = (id) =>
-  client.post(`/ravitaillement/${id}/promote-to-product/`).then((r) => r.data)
+// Without data: closes a request for a product already in the catalog.
+// With the catalog form data: creates the product the request was for.
+export const promoteRavitaillementToProduct = (id, data) =>
+  client
+    .post(`/ravitaillement/${id}/promote-to-product/`, data ? toFormData(data) : undefined)
+    .then((r) => r.data)
 
 export const listSupplierEntrances = () => client.get('/supplier-entrances/').then((r) => r.data)
 export const createSupplierEntrance = (data) =>

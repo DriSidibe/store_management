@@ -4,7 +4,7 @@ import { createProduct, listShelves, listUnits } from '../api/api'
 import CategorySelect from '../components/CategorySelect'
 import Button from '../components/ui/Button'
 import Card from '../components/ui/Card'
-import { Field, Input, Select, Textarea } from '../components/ui/Form'
+import { Field, Input, RequiredLegend, Select, Textarea } from '../components/ui/Form'
 import { extractErrorMessage, useToast } from '../toast/ToastContext'
 
 const initialForm = {
@@ -51,6 +51,7 @@ export default function AddProductPage() {
     <div>
       <h1 className="mb-5 text-xl font-semibold text-ink">Ajouter un produit</h1>
       <Card className="max-w-2xl">
+        <RequiredLegend className="mb-4" />
         <form className="space-y-4" onSubmit={handleSubmit}>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="Étagère">
@@ -84,7 +85,7 @@ export default function AddProductPage() {
               </Select>
             </Field>
             <Field label="Société">
-              <Input value={form.product_company} onChange={setField('product_company')} />
+              <Input value={form.product_company} onChange={setField('product_company')} required />
             </Field>
           </div>
 

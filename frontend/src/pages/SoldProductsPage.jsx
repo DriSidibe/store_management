@@ -6,20 +6,18 @@ import {
   dailySales,
   deleteSale,
   downloadReport,
-  listShelves,
-  listUnits,
   printReport,
   promoteSaleToProduct,
   updateSale,
 } from '../api/api'
-import CategorySelect from '../components/CategorySelect'
+import CatalogProductModal from '../components/CatalogProductModal'
 import ProductAutocomplete from '../components/ProductAutocomplete'
 import Badge from '../components/ui/Badge'
 import Button from '../components/ui/Button'
 import Card from '../components/ui/Card'
 import { CardStack, DataRow } from '../components/ui/CardList'
 import EmptyState from '../components/ui/EmptyState'
-import { Field, Input, Select, Textarea } from '../components/ui/Form'
+import { Field, Input } from '../components/ui/Form'
 import Modal from '../components/ui/Modal'
 import { TableSkeleton } from '../components/ui/Skeleton'
 import { Table, Tbody, Td, Th, Thead, Tr } from '../components/ui/Table'
@@ -27,20 +25,6 @@ import { useConfirm } from '../confirm/ConfirmContext'
 import { extractErrorMessage, useToast } from '../toast/ToastContext'
 
 const today = () => new Date().toISOString().slice(0, 10)
-
-const initialPromoteForm = {
-  product_id_etg: '',
-  product_id_cas: '',
-  product_name: '',
-  product_description: '',
-  product_unity: '',
-  category: '',
-  product_quantity: 1,
-  product_company: '',
-  product_cp: 1,
-  product_sp: 1,
-  low_stock_threshold: 5,
-}
 
 export default function SoldProductsPage() {
   const toast = useToast()
@@ -51,16 +35,11 @@ export default function SoldProductsPage() {
   const [periodEnd, setPeriodEnd] = useState(today())
   const [linkTarget, setLinkTarget] = useState(null)
   const [promoteTarget, setPromoteTarget] = useState(null)
-  const [promoteForm, setPromoteForm] = useState(initialPromoteForm)
-  const [promoteImage, setPromoteImage] = useState(null)
-  const [submitting, setSubmitting] = useState(false)
 
   const { data, isLoading } = useQuery({
     queryKey: ['sales-daily', date],
     queryFn: () => dailySales(date),
   })
-  const { data: shelves } = useQuery({ queryKey: ['shelves'], queryFn: listShelves })
-  const { data: units } = useQuery({ queryKey: ['units'], queryFn: listUnits })
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['sales-daily'] })
 
@@ -75,27 +54,11 @@ export default function SoldProductsPage() {
     }
   }
 
-  const openPromoteModal = (sale) => {
-    setPromoteTarget(sale)
-    setPromoteForm({ ...initialPromoteForm, product_name: sale.product_name_display || '' })
-    setPromoteImage(null)
-  }
-
-  const setPromoteField = (field) => (e) => setPromoteForm({ ...promoteForm, [field]: e.target.value })
-
-  const handlePromoteSubmit = async (e) => {
-    e.preventDefault()
-    setSubmitting(true)
-    try {
-      await promoteSaleToProduct(promoteTarget.id, { ...promoteForm, product_image: promoteImage })
-      toast.success('Produit créé à partir de la vente.')
-      setPromoteTarget(null)
-      invalidate()
-    } catch (err) {
-      toast.error(extractErrorMessage(err, 'Les informations sont incomplètes.'))
-    } finally {
-      setSubmitting(false)
-    }
+  const handlePromoteSubmit = async (data) => {
+    await promoteSaleToProduct(promoteTarget.id, data)
+    toast.success('Produit créé à partir de la vente.')
+    setPromoteTarget(null)
+    invalidate()
   }
 
   const handleLinkProduct = async (product) => {
@@ -193,7 +156,7 @@ export default function SoldProductsPage() {
                       {!s.product && (
                         <button
                           type="button"
-                          onClick={() => openPromoteModal(s)}
+                          onClick={() => setPromoteTarget(s)}
                           className="rounded-lg p-1.5 text-ink-secondary hover:bg-brand/10 hover:text-brand cursor-pointer"
                         >
                           <PlusCircle size={15} />
@@ -262,7 +225,7 @@ export default function SoldProductsPage() {
                             {!s.product && (
                               <button
                                 type="button"
-                                onClick={() => openPromoteModal(s)}
+                                onClick={() => setPromoteTarget(s)}
                                 title="Ajouter au catalogue"
                                 className="rounded-lg p-1.5 text-ink-secondary hover:bg-brand/10 hover:text-brand cursor-pointer"
                               >
@@ -304,84 +267,14 @@ export default function SoldProductsPage() {
         />
       </Modal>
 
-      <Modal
+      <CatalogProductModal
         open={!!promoteTarget}
         onClose={() => setPromoteTarget(null)}
-        title="Ajouter ce produit au catalogue"
-        size="lg"
-      >
-        <p className="mb-3 text-xs text-ink-muted">
-          Cette vente ne correspond à aucun produit enregistré. Renseigne les détails pour créer le
-          produit ; toutes les ventes portant ce même nom y seront rattachées.
-        </p>
-        <form className="space-y-4" onSubmit={handlePromoteSubmit}>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="Étagère">
-              <Select value={promoteForm.product_id_etg} onChange={setPromoteField('product_id_etg')} required>
-                <option value="">-- Sélectionner --</option>
-                {shelves?.results?.map((sh) => (
-                  <option key={sh.id} value={sh.name}>{sh.name}</option>
-                ))}
-              </Select>
-            </Field>
-            <Field label="Casier">
-              <Input value={promoteForm.product_id_cas} onChange={setPromoteField('product_id_cas')} required />
-            </Field>
-          </div>
-
-          <Field label="Nom du produit">
-            <Input value={promoteForm.product_name} onChange={setPromoteField('product_name')} required />
-          </Field>
-
-          <Field label="Description">
-            <Textarea rows={2} value={promoteForm.product_description} onChange={setPromoteField('product_description')} />
-          </Field>
-
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="Unité">
-              <Select value={promoteForm.product_unity} onChange={setPromoteField('product_unity')} required>
-                <option value="">-- Sélectionner --</option>
-                {units?.results?.map((u) => (
-                  <option key={u.id} value={u.id}>{u.name}</option>
-                ))}
-              </Select>
-            </Field>
-            <Field label="Société">
-              <Input value={promoteForm.product_company} onChange={setPromoteField('product_company')} />
-            </Field>
-          </div>
-
-          <CategorySelect value={promoteForm.category} onChange={setPromoteField('category')} required />
-
-          <div className="grid grid-cols-2 gap-4">
-            <Field label="Quantité">
-              <Input type="number" min="0" value={promoteForm.product_quantity} onChange={setPromoteField('product_quantity')} required />
-            </Field>
-            <Field label="Prix d'achat">
-              <Input type="number" step="0.01" min="0" value={promoteForm.product_cp} onChange={setPromoteField('product_cp')} required />
-            </Field>
-            <Field label="Prix de vente">
-              <Input type="number" step="0.01" min="0" value={promoteForm.product_sp} onChange={setPromoteField('product_sp')} required />
-            </Field>
-            <Field label="Seuil stock faible">
-              <Input type="number" min="0" value={promoteForm.low_stock_threshold} onChange={setPromoteField('low_stock_threshold')} />
-            </Field>
-          </div>
-
-          <Field label="Image" hint="Laisse vide pour garder l'image de la vente, si elle en a une.">
-            <input
-              type="file"
-              accept="image/*"
-              className="block w-full text-sm text-ink-secondary file:mr-3 file:rounded-lg file:border-0 file:bg-brand/10 file:px-3 file:py-2 file:text-sm file:font-medium file:text-brand hover:file:bg-brand/20"
-              onChange={(e) => setPromoteImage(e.target.files[0])}
-            />
-          </Field>
-
-          <Button type="submit" disabled={submitting} className="w-full sm:w-auto">
-            {submitting ? 'Création...' : 'Créer le produit'}
-          </Button>
-        </form>
-      </Modal>
+        onSubmit={handlePromoteSubmit}
+        initialName={promoteTarget?.product_name_display || ''}
+        description="Cette vente ne correspond à aucun produit enregistré. Renseigne les détails pour créer le produit ; toutes les ventes portant ce même nom y seront rattachées."
+        imageHint="Laisse vide pour garder l'image de la vente, si elle en a une."
+      />
     </div>
   )
 }

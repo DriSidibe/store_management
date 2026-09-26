@@ -5,7 +5,7 @@ import { createCamera, deleteCamera, listCameras, updateCamera } from '../api/ap
 import Button from '../components/ui/Button'
 import Card from '../components/ui/Card'
 import { CardStack } from '../components/ui/CardList'
-import { Checkbox, Field, Input, Select } from '../components/ui/Form'
+import { Checkbox, Field, Input, RequiredLegend, Select } from '../components/ui/Form'
 import { Table, Tbody, Td, Th, Thead, Tr } from '../components/ui/Table'
 import { useConfirm } from '../confirm/ConfirmContext'
 import { extractErrorMessage, useToast } from '../toast/ToastContext'
@@ -89,6 +89,7 @@ export default function CameraControlPage() {
           <h2 className="mb-3 text-sm font-semibold text-ink">
             {editingId ? 'Modifier la caméra' : 'Ajouter une caméra'}
           </h2>
+          <RequiredLegend className="-mt-1 mb-3" />
           <form className="space-y-4" onSubmit={handleSubmit}>
             <Field label="Nom">
               <Input value={form.name} onChange={setField('name')} required />

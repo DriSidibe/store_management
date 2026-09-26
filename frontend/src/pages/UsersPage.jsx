@@ -7,7 +7,7 @@ import Badge from '../components/ui/Badge'
 import Button from '../components/ui/Button'
 import Card from '../components/ui/Card'
 import { CardStack } from '../components/ui/CardList'
-import { Checkbox, Field, Input } from '../components/ui/Form'
+import { Checkbox, Field, Input, RequiredLegend } from '../components/ui/Form'
 import Modal from '../components/ui/Modal'
 import { Table, Tbody, Td, Th, Thead, Tr } from '../components/ui/Table'
 import { useConfirm } from '../confirm/ConfirmContext'
@@ -86,6 +86,7 @@ export default function UsersPage() {
           <h2 className="mb-3 flex items-center gap-1.5 text-sm font-semibold text-ink">
             <UserPlus size={15} /> Nouvel utilisateur
           </h2>
+          <RequiredLegend className="-mt-1 mb-3" />
           <form className="space-y-4" onSubmit={handleCreate}>
             <Field label="Nom d'utilisateur">
               <Input value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} required />
