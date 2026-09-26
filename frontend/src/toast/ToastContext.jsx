@@ -49,9 +49,13 @@ export function useToast() {
 }
 
 export function extractErrorMessage(error, fallback = "Une erreur s'est produite.") {
+  if (error?.response?.status === 413) {
+    return 'Fichier trop volumineux : choisis une image plus légère.'
+  }
   const data = error?.response?.data
   if (!data) return fallback
-  if (typeof data === 'string') return data
+  // Proxies answer with HTML error pages; never show raw markup to the user.
+  if (typeof data === 'string') return data.trimStart().startsWith('<') ? fallback : data
   if (data.detail) return data.detail
   const firstKey = Object.keys(data)[0]
   if (firstKey) {

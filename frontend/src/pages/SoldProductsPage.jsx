@@ -6,13 +6,13 @@ import {
   dailySales,
   deleteSale,
   downloadReport,
-  listCategories,
   listShelves,
   listUnits,
   printReport,
   promoteSaleToProduct,
   updateSale,
 } from '../api/api'
+import CategorySelect from '../components/CategorySelect'
 import ProductAutocomplete from '../components/ProductAutocomplete'
 import Badge from '../components/ui/Badge'
 import Button from '../components/ui/Button'
@@ -61,7 +61,6 @@ export default function SoldProductsPage() {
   })
   const { data: shelves } = useQuery({ queryKey: ['shelves'], queryFn: listShelves })
   const { data: units } = useQuery({ queryKey: ['units'], queryFn: listUnits })
-  const { data: categories } = useQuery({ queryKey: ['categories'], queryFn: listCategories })
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['sales-daily'] })
 
@@ -352,20 +351,7 @@ export default function SoldProductsPage() {
             </Field>
           </div>
 
-          <Field label="Catégorie" hint="Électricité, maçonnerie, plomberie... tape une nouvelle catégorie si besoin.">
-            <Input
-              list="promote-category-suggestions"
-              value={promoteForm.category}
-              onChange={setPromoteField('category')}
-              placeholder="Ex : Électricité"
-              required
-            />
-            <datalist id="promote-category-suggestions">
-              {categories?.results?.map((c) => (
-                <option key={c.id} value={c.name} />
-              ))}
-            </datalist>
-          </Field>
+          <CategorySelect value={promoteForm.category} onChange={setPromoteField('category')} required />
 
           <div className="grid grid-cols-2 gap-4">
             <Field label="Quantité">

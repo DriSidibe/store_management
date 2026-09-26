@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { compressFormDataImages } from '../utils/image'
 
 const ACCESS_KEY = 'sm_access_token'
 const REFRESH_KEY = 'sm_refresh_token'
@@ -18,7 +19,8 @@ export const tokenStore = {
 
 const client = axios.create({ baseURL: '/api' })
 
-client.interceptors.request.use((config) => {
+client.interceptors.request.use(async (config) => {
+  if (config.data instanceof FormData) config.data = await compressFormDataImages(config.data)
   const token = tokenStore.getAccess()
   if (token) config.headers.Authorization = `Bearer ${token}`
   return config

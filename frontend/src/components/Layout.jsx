@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import {
   AlertTriangle, BarChart3, Camera, ExternalLink, FileText, History, LayoutGrid, LogOut, Menu,
-  Moon, PackagePlus, PenSquare, Receipt, ShoppingCart, Sun, Truck, UserCog, Users,
+  Moon, PackagePlus, PenSquare, Receipt, ShoppingCart, Sun, Tags, Truck, UserCog, Users,
   Video, X,
 } from 'lucide-react'
 import { useState } from 'react'
@@ -22,6 +22,7 @@ const mainNav = [
 const staffNav = [
   { to: '/add-product', label: 'Ajouter Produit', icon: PackagePlus },
   { to: '/update-product', label: 'Modifier', icon: PenSquare },
+  { to: '/categories', label: 'Catégories', icon: Tags },
   { to: '/customers', label: 'Clients', icon: Users },
 ]
 

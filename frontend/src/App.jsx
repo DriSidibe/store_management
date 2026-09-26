@@ -5,6 +5,7 @@ import ActivityLogPage from './pages/ActivityLogPage'
 import AddProductPage from './pages/AddProductPage'
 import ApprovisionningPage from './pages/ApprovisionningPage'
 import BillingPage from './pages/BillingPage'
+import CategoriesPage from './pages/CategoriesPage'
 import AddProductToBillPage from './pages/AddProductToBillPage'
 import CameraControlPage from './pages/CameraControlPage'
 import CameraLivePage from './pages/CameraLivePage'
@@ -50,6 +51,7 @@ export default function App() {
           <Route element={<StaffRoute />}>
             <Route path="/add-product" element={<AddProductPage />} />
             <Route path="/update-product" element={<UpdateProductPage />} />
+            <Route path="/categories" element={<CategoriesPage />} />
             <Route path="/customers" element={<CustomersPage />} />
             <Route path="/customers/:id" element={<CustomerDetailPage />} />
           </Route>

@@ -3,7 +3,7 @@ import datetime
 import io
 import os
 
-from django.db.models import ExpressionWrapper, F, FloatField, Q, Sum
+from django.db.models import Count, ExpressionWrapper, F, FloatField, Q, Sum
 from django.http import FileResponse, HttpResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -24,7 +24,7 @@ from .models import (
     ActivityLog, Bill, BillItems, Category, Customer, Product, Ravitaillement, Sell, Shelf,
     SupplieEntrance, Unity,
 )
-from .permissions import IsSuperUser
+from .permissions import IsStaffOrReadOnly, IsSuperUser
 from .serializers import (
     ActivityLogSerializer, BillItemSerializer, BillSerializer, CategorySerializer,
     CustomerSerializer, ProductSerializer, PublicProductSerializer, RavitaillementSerializer,
@@ -46,8 +46,30 @@ class ShelfViewSet(viewsets.ModelViewSet):
 
 
 class CategoryViewSet(viewsets.ModelViewSet):
-    queryset = Category.objects.all().order_by('name')
+    """Product categories, managed from their own page and picked from a list
+    in the product forms. Not paginated: forms need the full list at once."""
     serializer_class = CategorySerializer
+    permission_classes = [IsStaffOrReadOnly]
+    pagination_class = None
+
+    def get_queryset(self):
+        return Category.objects.annotate(
+            products_count=Count('products', filter=Q(products__is_deleted=False))
+        ).order_by('name')
+
+    def perform_create(self, serializer):
+        category = serializer.save()
+        log_activity(self.request, 'created', 'Category', category.name)
+
+    def perform_update(self, serializer):
+        old_name = serializer.instance.name
+        category = serializer.save()
+        details = f"ancien nom : {old_name}" if old_name != category.name else ""
+        log_activity(self.request, 'updated', 'Category', category.name, details)
+
+    def perform_destroy(self, instance):
+        log_activity(self.request, 'deleted', 'Category', instance.name)
+        instance.delete()
 
 
 class ProductViewSet(viewsets.ModelViewSet):

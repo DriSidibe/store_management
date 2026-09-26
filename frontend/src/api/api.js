@@ -14,6 +14,9 @@ export function toFormData(obj) {
 export const listUnits = () => client.get('/units/').then((r) => r.data)
 export const listShelves = () => client.get('/shelves/').then((r) => r.data)
 export const listCategories = () => client.get('/categories/').then((r) => r.data)
+export const createCategory = (data) => client.post('/categories/', data).then((r) => r.data)
+export const updateCategory = (id, data) => client.patch(`/categories/${id}/`, data).then((r) => r.data)
+export const deleteCategory = (id) => client.delete(`/categories/${id}/`)
 
 // --- Products ---------------------------------------------------------------
 

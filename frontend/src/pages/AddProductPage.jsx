@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
-import { createProduct, listCategories, listShelves, listUnits } from '../api/api'
+import { createProduct, listShelves, listUnits } from '../api/api'
+import CategorySelect from '../components/CategorySelect'
 import Button from '../components/ui/Button'
 import Card from '../components/ui/Card'
 import { Field, Input, Select, Textarea } from '../components/ui/Form'
@@ -24,7 +25,6 @@ export default function AddProductPage() {
   const toast = useToast()
   const { data: shelves } = useQuery({ queryKey: ['shelves'], queryFn: listShelves })
   const { data: units } = useQuery({ queryKey: ['units'], queryFn: listUnits })
-  const { data: categories } = useQuery({ queryKey: ['categories'], queryFn: listCategories })
   const [form, setForm] = useState(initialForm)
   const [image, setImage] = useState(null)
   const [submitting, setSubmitting] = useState(false)
@@ -89,20 +89,7 @@ export default function AddProductPage() {
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="Catégorie" hint="Électricité, maçonnerie, plomberie... tape une nouvelle catégorie si besoin.">
-              <Input
-                list="category-suggestions"
-                value={form.category}
-                onChange={setField('category')}
-                placeholder="Ex : Électricité"
-                required
-              />
-              <datalist id="category-suggestions">
-                {categories?.results?.map((c) => (
-                  <option key={c.id} value={c.name} />
-                ))}
-              </datalist>
-            </Field>
+            <CategorySelect value={form.category} onChange={setField('category')} required />
           </div>
 
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">

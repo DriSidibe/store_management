@@ -34,17 +34,36 @@ class ShelfSerializer(serializers.ModelSerializer):
         fields = ['id', 'name']
 
 
+def find_category(name, exclude_pk=None):
+    """Case-insensitive category lookup done in Python: SQLite's iexact only
+    folds ASCII letters, so it would treat "électricité" and "Électricité"
+    as different names. There are few categories, so this stays cheap."""
+    key = name.casefold()
+    categories = Category.objects.exclude(pk=exclude_pk) if exclude_pk else Category.objects.all()
+    return next((c for c in categories if c.name.casefold() == key), None)
+
+
 class CategorySerializer(serializers.ModelSerializer):
+    products_count = serializers.IntegerField(read_only=True, default=0)
+
     class Meta:
         model = Category
-        fields = ['id', 'name']
+        fields = ['id', 'name', 'products_count']
+
+    def validate_name(self, value):
+        name = ' '.join(value.split())
+        if not name:
+            raise serializers.ValidationError("Le nom de la catégorie est obligatoire.")
+        if find_category(name, exclude_pk=self.instance.pk if self.instance else None):
+            raise serializers.ValidationError("Cette catégorie existe déjà.")
+        return name
 
 
 class ProductSerializer(serializers.ModelSerializer):
     product_unity_name = serializers.CharField(source='product_unity.name', read_only=True)
     product_category_name = serializers.CharField(source='product_category.name', read_only=True, default=None)
-    # Free-text category name from the form/CSV: looked up or created by
-    # name, so the catalog's category list grows organically.
+    # Name of an existing category (case-insensitive). Categories are created
+    # on their own page, not on the fly from the product forms.
     category = serializers.CharField(write_only=True, required=False, allow_blank=True)
     # Only used on create: the two segments of the composite product_id
     # that aren't the fixed "AM" prefix or the random sequence number.
@@ -72,6 +91,14 @@ class ProductSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Negative value is not allowed.")
         return value
 
+    def validate_category(self, value):
+        name = value.strip()
+        if name and not find_category(name):
+            raise serializers.ValidationError(
+                f"La catégorie « {name} » n'existe pas. Enregistre-la d'abord dans la page Catégories."
+            )
+        return name
+
     def validate(self, attrs):
         if self.instance is None:
             if not attrs.get('product_id_etg'):
@@ -86,7 +113,7 @@ class ProductSerializer(serializers.ModelSerializer):
         image = validated_data.pop('product_image', None)
         category_name = validated_data.pop('category', '').strip()
         if category_name:
-            validated_data['product_category'], _ = Category.objects.get_or_create(name=category_name)
+            validated_data['product_category'] = find_category(category_name)
         validated_data['product_name'] = validated_data['product_name'].title()
         validated_data['product_id'] = generate_product_id(etage, casier)
         product = Product.objects.create(**validated_data)
@@ -102,7 +129,7 @@ class ProductSerializer(serializers.ModelSerializer):
         if category_name is not None:
             category_name = category_name.strip()
             validated_data['product_category'] = (
-                Category.objects.get_or_create(name=category_name)[0] if category_name else None
+                find_category(category_name) if category_name else None
             )
         if 'product_name' in validated_data:
             validated_data['product_name'] = validated_data['product_name'].title()
