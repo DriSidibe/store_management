@@ -309,6 +309,7 @@ export default function SoldProductsPage() {
         open={!!promoteTarget}
         onClose={() => setPromoteTarget(null)}
         title="Ajouter ce produit au catalogue"
+        size="lg"
       >
         <p className="mb-3 text-xs text-ink-muted">
           Cette vente ne correspond à aucun produit enregistré. Renseigne les détails pour créer le
@@ -366,7 +367,7 @@ export default function SoldProductsPage() {
             </datalist>
           </Field>
 
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-4">
             <Field label="Quantité">
               <Input type="number" min="0" value={promoteForm.product_quantity} onChange={setPromoteField('product_quantity')} required />
             </Field>
@@ -390,7 +391,7 @@ export default function SoldProductsPage() {
             />
           </Field>
 
-          <Button type="submit" disabled={submitting}>
+          <Button type="submit" disabled={submitting} className="w-full sm:w-auto">
             {submitting ? 'Création...' : 'Créer le produit'}
           </Button>
         </form>
