@@ -29,7 +29,7 @@ export default function ReceiptPage() {
 
       <div className="mx-auto w-[80mm] max-w-full bg-white p-3 font-mono text-[11px] leading-tight text-black shadow-sm print:shadow-none">
         <div className="mb-2 text-center">
-          <div className="text-sm font-bold">AS DES MATERIAUX</div>
+          <img src="/logo-full.png" alt="AS DES MATERIAUX" className="mx-auto mb-1 w-[45mm]" />
           <div>Ticket de vente</div>
           <div>{new Date(sale.sell_date).toLocaleString('fr-FR')}</div>
         </div>

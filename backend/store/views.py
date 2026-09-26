@@ -13,7 +13,7 @@ from reportlab.lib.enums import TA_CENTER
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.platypus import Image as ReportLabImage
-from reportlab.platypus import Paragraph, SimpleDocTemplate, Table, TableStyle
+from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 from rest_framework import generics, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
@@ -35,6 +35,8 @@ from .stock import add_to_stock
 from .utils import generate_product_id, log_activity
 
 SEARCH_RESULT_LIMIT = 5
+REPORT_LOGO = os.path.join(os.path.dirname(__file__), 'assets', 'logo.png')
+REPORT_LOGO_RATIO = 265 / 600  # height / width of the logo file
 
 
 class UnityViewSet(viewsets.ModelViewSet):
@@ -739,11 +741,16 @@ class ReportView(APIView):
 
         table = Table(data, colWidths=col_widths, repeatRows=1)
         table.setStyle(style)
+        story = [table]
+        if os.path.exists(REPORT_LOGO):
+            logo = ReportLabImage(REPORT_LOGO, width=140, height=140 * REPORT_LOGO_RATIO)
+            logo.hAlign = 'LEFT'
+            story = [logo, Spacer(1, 10), table]
         buffer = io.BytesIO()
         SimpleDocTemplate(
             buffer, pagesize=page_size,
             leftMargin=margin, rightMargin=margin, topMargin=margin, bottomMargin=margin,
-        ).build([table])
+        ).build(story)
         buffer.seek(0)
         return FileResponse(buffer, as_attachment=True, filename=f"{target}.pdf", content_type='application/pdf')
 

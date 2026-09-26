@@ -10,19 +10,19 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
+      includeAssets: ['favicon.ico', 'favicon.png', 'apple-touch-icon.png', 'logo-mark.png', 'logo-full.png'],
       manifest: {
-        name: 'Gestion Magasin',
+        name: 'As des Matériaux',
         short_name: 'ADM',
         description: 'Gestion de magasin - produits, ventes, facturation, caméras',
         theme_color: '#2a78d6',
-        background_color: '#f9f9f7',
+        background_color: '#ffffff',
         display: 'standalone',
         start_url: '/',
         icons: [
           { src: 'pwa-192.png', sizes: '192x192', type: 'image/png' },
           { src: 'pwa-512.png', sizes: '512x512', type: 'image/png' },
-          { src: 'pwa-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+          { src: 'pwa-512-maskable.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
       workbox: {

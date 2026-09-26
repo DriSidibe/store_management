@@ -83,10 +83,13 @@ export default function Layout() {
   const sidebarContent = (
     <>
       <div className="flex items-center gap-2 px-2 py-1">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand text-sm font-bold text-white">
-          AM
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border bg-white p-1">
+          <img src="/logo-mark.png" alt="" className="h-full w-auto" />
         </div>
-        <span className="text-sm font-semibold text-ink">Gestion Magasin</span>
+        <div className="min-w-0 leading-tight">
+          <span className="block text-sm font-semibold text-ink">As des Matériaux</span>
+          <span className="block text-xs text-ink-muted">Gestion du magasin</span>
+        </div>
       </div>
 
       <nav className="mt-6 flex flex-1 flex-col gap-1 overflow-y-auto">

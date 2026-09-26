@@ -71,8 +71,8 @@ export default function StorefrontPage() {
       <header className="sticky top-0 z-30 border-b border-border bg-surface/90 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand text-white">
-              <HardHat size={19} />
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border bg-white p-1">
+              <img src="/logo-mark.png" alt="" className="h-full w-auto" />
             </div>
             <div>
               <h1 className="text-lg font-bold leading-tight tracking-tight text-ink">As des Matériaux</h1>

@@ -1,4 +1,3 @@
-import { Store } from 'lucide-react'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
@@ -33,8 +32,8 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-page px-4">
       <Card className="w-full max-w-sm">
         <div className="mb-5 flex flex-col items-center gap-2 text-center">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand text-white">
-            <Store size={20} />
+          <div className="mb-1 rounded-xl bg-white px-4 py-3">
+            <img src="/logo-full.png" alt="As des Matériaux" className="h-20 w-auto" />
           </div>
           <h1 className="text-lg font-semibold text-ink">Connexion</h1>
         </div>
