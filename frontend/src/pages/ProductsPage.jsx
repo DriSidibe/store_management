@@ -1,9 +1,10 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Download, Package, Pencil, Search, Trash2, Upload } from 'lucide-react'
+import { ArrowLeft, CheckCircle2, Download, Package, Pencil, Printer, Search, ShoppingCart, Trash2, Upload } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { deleteProduct, downloadReport, importProductsCsv, listProducts } from '../api/api'
 import { useAuth } from '../auth/AuthContext'
+import SaleForm from '../components/SaleForm'
 import Badge from '../components/ui/Badge'
 import Button from '../components/ui/Button'
 import { CardGrid, DataRow } from '../components/ui/CardList'
@@ -27,6 +28,22 @@ export default function ProductsPage() {
   const [importing, setImporting] = useState(false)
   const importInputRef = useRef(null)
   const [detailProduct, setDetailProduct] = useState(null)
+  // The details modal doubles as a quick sale: 'details' -> 'sell' -> 'sold'.
+  const [detailMode, setDetailMode] = useState('details')
+  const [lastSale, setLastSale] = useState(null)
+
+  const openDetail = (product, mode = 'details') => {
+    setDetailProduct(product)
+    setDetailMode(mode)
+  }
+
+  const closeDetail = () => setDetailProduct(null)
+
+  const handleQuickSold = (sale) => {
+    setLastSale(sale)
+    setDetailMode('sold')
+    setDetailProduct((p) => ({ ...p, product_quantity: p.product_quantity - (sale.quantity || 0) }))
+  }
 
   const { data, isLoading } = useQuery({
     queryKey: ['products', debouncedSearch, page],
@@ -123,7 +140,7 @@ export default function ProductsPage() {
               return (
                 <div
                   key={p.product_id}
-                  onClick={() => setDetailProduct(p)}
+                  onClick={() => openDetail(p)}
                   className="cursor-pointer overflow-hidden rounded-xl border border-border bg-surface"
                 >
                   <div className="relative flex aspect-square items-center justify-center bg-ink/5">
@@ -189,7 +206,7 @@ export default function ProductsPage() {
                 {data?.results.map((p) => {
                   const isLow = p.product_quantity <= p.low_stock_threshold
                   return (
-                    <Tr key={p.product_id} onClick={() => setDetailProduct(p)} className="cursor-pointer">
+                    <Tr key={p.product_id} onClick={() => openDetail(p)} className="cursor-pointer">
                       <Td>
                         {p.product_image ? (
                           <img src={p.product_image} alt="" className="h-10 w-10 rounded-lg object-cover" />
@@ -258,10 +275,10 @@ export default function ProductsPage() {
 
       <Modal
         open={!!detailProduct}
-        onClose={() => setDetailProduct(null)}
-        title={detailProduct?.product_name}
+        onClose={closeDetail}
+        title={detailMode === 'details' ? detailProduct?.product_name : `Vendre « ${detailProduct?.product_name} »`}
       >
-        {detailProduct && (
+        {detailProduct && detailMode === 'details' && (
           <div>
             <div className="mb-4 flex items-center gap-3">
               {detailProduct.product_image ? (
@@ -291,15 +308,62 @@ export default function ProductsPage() {
             <DataRow label="Prix d'achat" value={`${detailProduct.product_cp} FCFA`} />
             <DataRow label="Prix de vente" value={`${detailProduct.product_sp} FCFA`} />
 
-            {user?.is_staff && (
-              <div className="mt-4 flex justify-end">
+            <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              {user?.is_staff && (
                 <Link to="/update-product" state={{ productId: detailProduct.product_id }}>
-                  <Button variant="outline">
+                  <Button variant="outline" className="w-full sm:w-auto">
                     <Pencil size={15} /> Modifier
                   </Button>
                 </Link>
-              </div>
-            )}
+              )}
+              <Button
+                onClick={() => setDetailMode('sell')}
+                disabled={detailProduct.product_quantity <= 0}
+                className="w-full sm:w-auto"
+              >
+                <ShoppingCart size={15} /> {detailProduct.product_quantity > 0 ? 'Vendre' : 'Rupture de stock'}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {detailProduct && detailMode === 'sell' && (
+          <div>
+            <button
+              type="button"
+              onClick={() => setDetailMode('details')}
+              className="mb-3 flex items-center gap-1 text-xs font-medium text-ink-secondary hover:text-brand cursor-pointer"
+            >
+              <ArrowLeft size={13} /> Retour aux détails
+            </button>
+            <SaleForm lockedProduct={detailProduct} onSold={handleQuickSold} />
+          </div>
+        )}
+
+        {detailProduct && detailMode === 'sold' && lastSale && (
+          <div className="text-center">
+            <CheckCircle2 size={40} className="mx-auto mb-2 text-success" />
+            <p className="font-medium text-ink">Vente enregistrée</p>
+            <p className="mb-4 text-sm text-ink-secondary">
+              {lastSale.quantity} × {detailProduct.product_name} · {lastSale.total_price} FCFA
+              <br />
+              Stock restant : {detailProduct.product_quantity}
+            </p>
+            <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">
+              <Link to={`/receipt/${lastSale.id}`}>
+                <Button className="w-full sm:w-auto">
+                  <Printer size={15} /> Imprimer le ticket
+                </Button>
+              </Link>
+              {detailProduct.product_quantity > 0 && (
+                <Button variant="outline" onClick={() => setDetailMode('sell')} className="w-full sm:w-auto">
+                  <ShoppingCart size={15} /> Nouvelle vente
+                </Button>
+              )}
+              <Button variant="ghost" onClick={closeDetail} className="w-full sm:w-auto">
+                Fermer
+              </Button>
+            </div>
           </div>
         )}
       </Modal>
