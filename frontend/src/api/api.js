@@ -168,6 +168,8 @@ export const deleteCamera = (id) => client.delete(`/camera/cameras/${id}/`)
 export const saveSnapshot = (cameraId, snapshot) =>
   client.post('/camera/save-snapshot/', { camera_id: cameraId, snapshot }).then((r) => r.data)
 export const listLiveCameras = () => client.get('/camera/live/').then((r) => r.data)
+export const setLiveStreamEnabled = (cameraId, enabled) =>
+  client.patch(`/camera/live/${cameraId}/`, { live_enabled: enabled }).then((r) => r.data)
 export const listMotionEyeCameras = () => client.get('/camera/motioneye/').then((r) => r.data)
 export const getRecordingSettings = () => client.get('/camera/recording-settings/').then((r) => r.data)
 export const updateRecordingSettings = (retentionDays) =>

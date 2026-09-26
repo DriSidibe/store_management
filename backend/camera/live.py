@@ -13,6 +13,8 @@ from urllib.parse import parse_qs, urlsplit
 from django.conf import settings
 from django.core import signing
 
+from .models import LiveStreamSetting
+
 LIVE_SALT = 'camera-live'
 LIVE_MAX_AGE = 12 * 3600
 LIVE_PATH = re.compile(r'^/camera-live/(\d+)/$')
@@ -50,6 +52,11 @@ def motioneye_cameras():
     return sorted(cameras, key=lambda c: c['id'])
 
 
+def live_disabled_ids():
+    """motionEye camera ids whose live view an admin turned off."""
+    return set(LiveStreamSetting.objects.filter(enabled=False).values_list('motion_camera_id', flat=True))
+
+
 def signed_live_url(port):
     return f'/camera-live/{port}/?t={signing.dumps(port, salt=LIVE_SALT)}'
 
@@ -67,4 +74,5 @@ def live_request_allowed(original_uri):
             return False
     except signing.BadSignature:
         return False
-    return port in {c['port'] for c in motioneye_cameras() if c['enabled']}
+    disabled = live_disabled_ids()
+    return port in {c['port'] for c in motioneye_cameras() if c['enabled'] and c['id'] not in disabled}

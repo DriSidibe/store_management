@@ -296,3 +296,23 @@ class LiveCameraTests(APITestCase):
         wrong_salt = signing.dumps(8081, salt='camera-feed')
         self.assertEqual(self.auth(f'/camera-live/8081/?t={wrong_salt}'), 403)
         self.assertNotEqual(LIVE_SALT, 'camera-feed')
+
+    def test_admin_can_turn_a_camera_live_view_off_and_on(self):
+        from camera.live import signed_live_url
+        link_before = signed_live_url(8081)
+        self.client.force_authenticate(User.objects.create_user('chef', password='x', is_staff=True))
+        self.assertEqual(self.client.patch('/api/camera/live/1/', {'live_enabled': False}, format='json').status_code, 403)
+
+        self.client.force_authenticate(User.objects.create_superuser('admin', password='x'))
+        self.assertEqual(self.client.patch('/api/camera/live/9/', {'live_enabled': False}, format='json').status_code, 404)
+        self.assertEqual(self.client.patch('/api/camera/live/1/', {'live_enabled': 'non'}, format='json').status_code, 400)
+        self.assertEqual(self.client.patch('/api/camera/live/1/', {'live_enabled': False}, format='json').status_code, 200)
+
+        bureau1 = self.client.get('/api/camera/live/').data[0]
+        self.assertEqual((bureau1['live_enabled'], bureau1['stream_url']), (False, None))
+        self.assertEqual(self.auth(link_before), 403)  # links handed out earlier stop working too
+        self.assertEqual(self.auth(signed_live_url(9082)), 204)  # the other camera is untouched
+
+        self.client.patch('/api/camera/live/1/', {'live_enabled': True}, format='json')
+        self.assertTrue(self.client.get('/api/camera/live/').data[0]['stream_url'])
+        self.assertEqual(self.auth(link_before), 204)

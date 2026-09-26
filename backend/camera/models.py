@@ -94,3 +94,14 @@ class RecordingSettings(models.Model):
 
     def __str__(self):
         return f"Conservation des vidéos : {self.retention_days} jours"
+
+
+class LiveStreamSetting(models.Model):
+    """Whether the live view of a motionEye camera is offered in the app.
+    Turning it off frees the shop's outgoing bandwidth; recording goes on."""
+
+    motion_camera_id = models.PositiveIntegerField(unique=True, help_text="n of motionEye's camera-<n>.conf")
+    enabled = models.BooleanField(default=True)
+
+    def __str__(self):
+        return f"Direct caméra {self.motion_camera_id} : {'activé' if self.enabled else 'désactivé'}"

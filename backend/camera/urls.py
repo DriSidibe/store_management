@@ -16,6 +16,7 @@ urlpatterns = [
     path('media/', views.ProtectedMediaView.as_view(), name='protected_media'),
     path('recording-settings/', views.RecordingSettingsView.as_view(), name='recording_settings'),
     path('live/', views.LiveCamerasView.as_view(), name='live_cameras'),
+    path('live/<int:camera_id>/', views.LiveStreamToggleView.as_view(), name='live_toggle'),
     path('live-auth/', views.LiveAuthView.as_view(), name='live_auth'),
     path('motioneye/', views.MotionEyeCameraListView.as_view(), name='motioneye_cameras'),
     path('motioneye/<str:camera_id>/', views.MotionEyeDateListView.as_view(), name='motioneye_dates'),

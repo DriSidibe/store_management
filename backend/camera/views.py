@@ -18,9 +18,9 @@ from .camera_stream import (
 from store.permissions import IsSuperUser
 from store.utils import log_activity
 
-from .live import live_request_allowed, motioneye_cameras, signed_live_url
+from .live import live_disabled_ids, live_request_allowed, motioneye_cameras, signed_live_url
 from .media_access import feed_token_is_valid, resolve_media_token, signed_media_url
-from .models import Camera, RecordingSettings
+from .models import Camera, LiveStreamSetting, RecordingSettings
 from .retention import RETENTION_CHOICES, storage_summary
 from .serializers import CameraSerializer
 from .video import VideoUnavailable, playable_clip
@@ -262,16 +262,37 @@ class RecordingSettingsView(APIView):
 
 
 class LiveCamerasView(APIView):
-    """The motionEye cameras, each with a signed link to its live stream."""
+    """The motionEye cameras, each with a signed link to its live stream
+    (none when the camera is off in motionEye or its live view is turned off)."""
 
     def get(self, request):
-        return Response([
-            {
+        disabled = live_disabled_ids()
+        cameras = []
+        for c in motioneye_cameras():
+            live_enabled = c['id'] not in disabled
+            cameras.append({
                 'id': c['id'], 'name': c['name'], 'folder': c['folder'], 'enabled': c['enabled'],
-                'stream_url': signed_live_url(c['port']) if c['enabled'] else None,
-            }
-            for c in motioneye_cameras()
-        ])
+                'live_enabled': live_enabled,
+                'stream_url': signed_live_url(c['port']) if c['enabled'] and live_enabled else None,
+            })
+        return Response(cameras)
+
+
+class LiveStreamToggleView(APIView):
+    """Admins turn a camera's live view off (to free bandwidth) or back on."""
+    permission_classes = [IsSuperUser]
+
+    def patch(self, request, camera_id):
+        camera = next((c for c in motioneye_cameras() if c['id'] == camera_id), None)
+        if camera is None:
+            return Response({'detail': "Caméra inconnue."}, status=status.HTTP_404_NOT_FOUND)
+        enabled = request.data.get('live_enabled')
+        if not isinstance(enabled, bool):
+            return Response({'live_enabled': "Valeur attendue : true ou false."}, status=status.HTTP_400_BAD_REQUEST)
+        LiveStreamSetting.objects.update_or_create(motion_camera_id=camera_id, defaults={'enabled': enabled})
+        log_activity(request, 'updated', 'LiveStream', camera['name'],
+                     "direct activé" if enabled else "direct désactivé")
+        return Response({'id': camera_id, 'live_enabled': enabled})
 
 
 class LiveAuthView(APIView):
