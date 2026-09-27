@@ -1,9 +1,18 @@
+import gzip
+import sqlite3
+import tempfile
+from pathlib import Path
+from unittest import mock
+
 from django.contrib.auth.models import User
+from django.core.management import call_command
+from django.core.management.base import CommandError
+from django.test import TransactionTestCase, override_settings
 from rest_framework.test import APITestCase
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 
-from .models import Bill, Category, Product, ProductPriceChange, Ravitaillement, Sell, Unity
+from .models import ActivityLog, Bill, Category, Product, ProductPriceChange, Ravitaillement, Sell, Unity
 
 
 class CategoryApiTests(APITestCase):
@@ -497,3 +506,55 @@ class PriceHistoryTests(APITestCase):
         self.client.patch(url, {'product_sp': 1700})
 
         self.assertEqual([c['new_selling_price'] for c in self.history()], [1700, 1600])
+
+
+class BackupCommandTests(TransactionTestCase):
+    # Not TestCase: SQLite's backup would wait forever on the write
+    # transaction TestCase wraps each test in.
+    def setUp(self):
+        self.dir = Path(tempfile.mkdtemp())
+        Category.objects.create(name='Maçonnerie')
+
+    def backup(self, **settings_overrides):
+        with override_settings(BACKUP_DIR=str(self.dir), **settings_overrides):
+            call_command('backup_db', stdout=mock.MagicMock())
+        return sorted(self.dir.glob('db-*.sqlite3.gz'))
+
+    def test_backup_is_a_restorable_copy_of_the_database(self):
+        [archive] = self.backup(BACKUP_DEST='')
+
+        restored = self.dir / 'restored.sqlite3'
+        restored.write_bytes(gzip.decompress(archive.read_bytes()))
+        db = sqlite3.connect(restored)
+        self.assertEqual(db.execute('SELECT name FROM store_category').fetchall(), [('Maçonnerie',)])
+        db.close()
+        self.assertTrue(ActivityLog.objects.filter(action='backup').exists())
+
+    def test_only_the_latest_backups_are_kept(self):
+        for day in range(1, 5):
+            (self.dir / f'db-2026-01-0{day}_230000.sqlite3.gz').write_bytes(b'old')
+
+        archives = self.backup(BACKUP_DEST='', BACKUP_KEEP=2)
+
+        self.assertEqual(len(archives), 2)
+        self.assertEqual(archives[0].name, 'db-2026-01-04_230000.sqlite3.gz')
+
+    @mock.patch('store.management.commands.backup_db.subprocess.run')
+    def test_backup_is_sent_to_the_destination_and_old_remote_ones_pruned(self, run):
+        run.return_value = mock.Mock(returncode=0, stderr='')
+
+        [archive] = self.backup(BACKUP_DEST='drissa@vps:backups/store', BACKUP_KEEP=8, BACKUP_SSH_KEY='/k')
+
+        commands = [call.args[0] for call in run.call_args_list]
+        self.assertEqual(commands[0][-2:], ['drissa@vps', "mkdir -p 'backups/store'"])
+        self.assertEqual(commands[1][0], 'scp')
+        self.assertEqual(commands[1][-2:], [str(archive), 'drissa@vps:backups/store/'])
+        self.assertIn('tail -n +9', commands[2][-1])
+        self.assertIn('/k', commands[1])
+
+    @mock.patch('store.management.commands.backup_db.subprocess.run')
+    def test_failed_transfer_is_reported(self, run):
+        run.return_value = mock.Mock(returncode=255, stderr='Permission denied (publickey).')
+
+        with self.assertRaisesMessage(CommandError, 'Permission denied'):
+            self.backup(BACKUP_DEST='drissa@vps:backups/store')

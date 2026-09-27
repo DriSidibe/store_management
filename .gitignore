@@ -6,6 +6,7 @@ thumbnails
 __pycache__/
 *.pyc
 backend/db.sqlite3
+backend/backups/
 backend/staticfiles/
 backend/video-cache/
 node_modules/

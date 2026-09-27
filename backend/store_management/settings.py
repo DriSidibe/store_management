@@ -174,3 +174,13 @@ else:
 MESSAGE_TAGS = {
     messages.ERROR: 'danger'
 }
+
+# Weekly database backup (see store/management/commands/backup_db.py, run by
+# the store_management-backup timer that deploy.sh installs when BACKUP_DEST
+# is set). BACKUP_DEST is an scp target, e.g.
+# drissa@109.123.247.157:backups/store_management; empty keeps the backups
+# on this machine only.
+BACKUP_DIR = env('BACKUP_DIR', default=os.path.join(BASE_DIR, 'backups'))
+BACKUP_KEEP = env.int('BACKUP_KEEP', default=8)
+BACKUP_DEST = env('BACKUP_DEST', default='')
+BACKUP_SSH_KEY = env('BACKUP_SSH_KEY', default=os.path.expanduser('~/.ssh/store_backup'))

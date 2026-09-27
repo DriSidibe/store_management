@@ -226,10 +226,41 @@ Persistent=true
 WantedBy=timers.target
 EOF
 
+# Weekly database backup, sent to BACKUP_DEST (backend/.env) when set - see
+# the backup_db management command and the README.
+sudo tee "/etc/systemd/system/$SERVICE_NAME-backup.service" > /dev/null <<EOF
+[Unit]
+Description=Weekly store_management database backup
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=$DEPLOY_USER
+Group=www-data
+WorkingDirectory=$BACKEND_DIR
+EnvironmentFile=$ENV_FILE
+ExecStart=$VENV_DIR/bin/python manage.py backup_db
+Nice=10
+EOF
+
+sudo tee "/etc/systemd/system/$SERVICE_NAME-backup.timer" > /dev/null <<EOF
+[Unit]
+Description=Weekly store_management database backup (Sunday evening)
+
+[Timer]
+OnCalendar=Sun *-*-* 23:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+EOF
+
 sudo systemctl daemon-reload
 sudo systemctl restart "$SERVICE_NAME"
 sudo systemctl enable "$SERVICE_NAME" --quiet
 sudo systemctl enable --now "$SERVICE_NAME-purge.timer" --quiet
+sudo systemctl enable --now "$SERVICE_NAME-backup.timer" --quiet
 
 # --- 7. Health check -----------------------------------------------------------
 log "Checking that the service came up..."
