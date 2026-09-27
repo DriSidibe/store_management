@@ -89,14 +89,31 @@ def parse_unit_cost(data):
     return unit_cost
 
 
+def parse_selling_price(data):
+    """Optional new selling price given with a restock: None when absent or
+    left empty (the selling price then stays as it is)."""
+    raw = data.get('selling_price')
+    if raw in (None, ''):
+        return None
+    try:
+        selling_price = float(raw)
+    except (TypeError, ValueError):
+        selling_price = -1
+    if selling_price < 0:
+        raise ValidationError({'selling_price': "Le prix de vente doit être un nombre positif."})
+    return selling_price
+
+
 def record_restock(request, model_name, product, quantity, unit_cost, old_cost, new_cost):
-    """Activity log and price history entry for a restock (selling price
-    unchanged)."""
+    """Activity log and price history entry for a restock. `product` is the
+    object as loaded before the restock, so it still holds the old selling
+    price; the history entry also records a selling price set with it."""
     note = f"+{quantity} à {unit_cost:g} FCFA"
-    log_activity(
-        request, 'received', model_name, product.product_name,
-        f"{note}, prix d'achat moyen {old_cost:g} -> {new_cost:g} FCFA",
-    )
+    details = f"{note}, prix d'achat moyen {old_cost:g} -> {new_cost:g} FCFA"
+    new_selling = Product.objects.values_list('product_sp', flat=True).get(pk=product.pk)
+    if new_selling != product.product_sp:
+        details += f", prix de vente {product.product_sp:g} -> {new_selling:g} FCFA"
+    log_activity(request, 'received', model_name, product.product_name, details)
     record_price_change(
         product, request.user, ProductPriceChange.Reason.RESTOCKED,
         old_cost=old_cost, old_selling=product.product_sp, note=note,
@@ -155,7 +172,8 @@ class ProductViewSet(viewsets.ModelViewSet):
     def restock(self, request, product_id=None):
         """Adds received units to the stock; the product's cost price becomes
         the weighted average of the stock on hand and the new units (see
-        stock.restock)."""
+        stock.restock). An optional `selling_price` updates the selling
+        price at the same time."""
         product = self.get_object()
         try:
             quantity = int(request.data.get('quantity'))
@@ -164,8 +182,9 @@ class ProductViewSet(viewsets.ModelViewSet):
         if quantity <= 0:
             raise ValidationError({'quantity': "Indique la quantité reçue (au moins 1)."})
         unit_cost = parse_unit_cost(request.data)
+        selling_price = parse_selling_price(request.data)
         with transaction.atomic():
-            old_cost, new_cost = restock(product, quantity, unit_cost)
+            old_cost, new_cost = restock(product, quantity, unit_cost, selling_price)
         record_restock(request, 'Product', product, quantity, unit_cost, old_cost, new_cost)
         product.refresh_from_db()
         return Response(ProductSerializer(product).data)

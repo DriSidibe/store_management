@@ -18,21 +18,22 @@ def remove_from_stock(product, quantity):
     Product.objects.filter(pk=product.pk).update(product_quantity=F('product_quantity') - quantity)
 
 
-def restock(product, quantity, unit_cost):
+def restock(product, quantity, unit_cost, selling_price=None):
     """Adds `quantity` units bought at `unit_cost` each and replaces the
     product's cost price by the weighted average of the stock already on hand
     and the new units: (stock x current cost + quantity x unit_cost) /
     (stock + quantity). A stock at or below zero has no value to average with,
-    so the new cost is then simply `unit_cost`. Returns (old cost, new cost).
-    Call inside a transaction."""
+    so the new cost is then simply `unit_cost`. The selling price only changes
+    when a new one is given. Returns (old cost, new cost). Call inside a
+    transaction."""
     current = Product.objects.select_for_update().get(pk=product.pk)
     old_cost = current.product_cp
     on_hand = max(current.product_quantity, 0)
     new_cost = round((on_hand * old_cost + quantity * unit_cost) / (on_hand + quantity), 2)
-    Product.objects.filter(pk=product.pk).update(
-        product_quantity=F('product_quantity') + quantity,
-        product_cp=new_cost,
-    )
+    changes = {'product_quantity': F('product_quantity') + quantity, 'product_cp': new_cost}
+    if selling_price is not None:
+        changes['product_sp'] = selling_price
+    Product.objects.filter(pk=product.pk).update(**changes)
     return old_cost, new_cost
 
 

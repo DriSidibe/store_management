@@ -28,6 +28,11 @@ const averageCost = (product, quantity, unitCost) => {
   const onHand = Math.max(product.product_quantity, 0)
   return Math.round(((onHand * product.product_cp + quantity * unitCost) / (onHand + quantity)) * 100) / 100
 }
+// Selling price that keeps the product's current margin rate on its new
+// average cost (e.g. bought 1000 / sold 1500 -> sold 1.5 x the new cost),
+// rounded to the franc. Without a cost to compare to, the current price.
+const suggestedSellingPrice = (product, newCost) =>
+  product.product_cp > 0 ? Math.round((newCost * product.product_sp) / product.product_cp) : product.product_sp
 const fileInputClass =
   'block w-full text-sm text-ink-secondary file:mr-3 file:rounded-lg file:border-0 file:bg-brand/10 file:px-3 file:py-2 file:text-sm file:font-medium file:text-brand hover:file:bg-brand/20'
 
@@ -53,11 +58,26 @@ export default function ApprovisionningPage() {
   const [restockTarget, setRestockTarget] = useState(null)
   const [restockQuantity, setRestockQuantity] = useState('')
   const [restockUnitCost, setRestockUnitCost] = useState('')
+  // null until the user types in the field: it then shows the suggestion.
+  const [restockSellingPrice, setRestockSellingPrice] = useState(null)
   const [restocking, setRestocking] = useState(false)
   const restockPreview =
     restockTarget && Number(restockQuantity) > 0 && restockUnitCost !== ''
       ? averageCost(restockTarget, Number(restockQuantity), Number(restockUnitCost))
       : null
+  const sellingPriceField =
+    restockSellingPrice ?? (restockPreview !== null ? String(suggestedSellingPrice(restockTarget, restockPreview)) : '')
+  // Profit per unit with the selling price that will apply: the one in the
+  // field, or the current one if the field is emptied.
+  const newUnitProfit =
+    restockPreview !== null
+      ? Math.round(((sellingPriceField === '' ? restockTarget.product_sp : Number(sellingPriceField)) - restockPreview) * 100) / 100
+      : null
+
+  const selectRestockTarget = (product) => {
+    setRestockTarget(product)
+    setRestockSellingPrice(null)
+  }
 
   const [supplierName, setSupplierName] = useState('')
   const [phone, setPhone] = useState('')
@@ -134,13 +154,16 @@ export default function ApprovisionningPage() {
       const product = await restockProduct(restockTarget.product_id, {
         quantity: restockQuantity,
         unit_cost: restockUnitCost,
+        selling_price: sellingPriceField,
       })
       toast.success(
-        `${product.product_name} : +${restockQuantity} en stock, nouveau prix d'achat ${product.product_cp} FCFA.`
+        `${product.product_name} : +${restockQuantity} en stock, prix d'achat ${product.product_cp} FCFA, ` +
+          `prix de vente ${product.product_sp} FCFA.`
       )
       setRestockTarget(null)
       setRestockQuantity('')
       setRestockUnitCost('')
+      setRestockSellingPrice(null)
       refreshStock()
     } catch (err) {
       toast.error(extractErrorMessage(err))
@@ -210,7 +233,7 @@ export default function ApprovisionningPage() {
             <h2 className="mb-3 text-sm font-semibold text-ink">Ravitailler un produit</h2>
             {!restockTarget ? (
               <Field label="Produit">
-                <ProductAutocomplete placeholder="Tape le nom ou le code du produit..." onSelect={setRestockTarget} />
+                <ProductAutocomplete placeholder="Tape le nom ou le code du produit..." onSelect={selectRestockTarget} />
               </Field>
             ) : (
               <form className="space-y-4" onSubmit={handleRestockSubmit}>
@@ -218,12 +241,12 @@ export default function ApprovisionningPage() {
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium text-ink">{restockTarget.product_name}</p>
                     <p className="text-xs text-ink-muted">
-                      Stock : {restockTarget.product_quantity} · Prix d'achat actuel : {restockTarget.product_cp} FCFA
+                      Stock : {restockTarget.product_quantity} · Prix d'achat : {restockTarget.product_cp} FCFA · Prix de vente : {restockTarget.product_sp} FCFA
                     </p>
                   </div>
                   <button
                     type="button"
-                    onClick={() => setRestockTarget(null)}
+                    onClick={() => selectRestockTarget(null)}
                     title="Changer de produit"
                     className="rounded-lg p-1.5 text-ink-secondary hover:bg-danger/10 hover:text-danger cursor-pointer"
                   >
@@ -238,9 +261,29 @@ export default function ApprovisionningPage() {
                   <Input type="number" step="0.01" min="0" value={restockUnitCost} onChange={(e) => setRestockUnitCost(e.target.value)} required />
                 </Field>
                 {restockPreview !== null && (
-                  <p className="text-xs text-ink-muted">
-                    Nouveau prix d'achat moyen : <span className="font-semibold text-ink">{restockPreview} FCFA</span>
-                  </p>
+                  <>
+                    <div className="space-y-1 rounded-lg bg-ink/5 p-3 text-xs text-ink-muted">
+                      <p>
+                        Nouveau prix d'achat moyen : <span className="font-semibold text-ink">{restockPreview} FCFA</span>
+                      </p>
+                      <p>
+                        Bénéfice par unité : {Math.round((restockTarget.product_sp - restockTarget.product_cp) * 100) / 100} →{' '}
+                        <span className={`font-semibold ${newUnitProfit < 0 ? 'text-danger' : 'text-ink'}`}>{newUnitProfit} FCFA</span>
+                      </p>
+                    </div>
+                    <Field
+                      label="Nouveau prix de vente (FCFA)"
+                      hint={`Proposé pour garder la même marge en pourcentage. Vide ce champ pour garder le prix actuel (${restockTarget.product_sp} FCFA).`}
+                    >
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={sellingPriceField}
+                        onChange={(e) => setRestockSellingPrice(e.target.value)}
+                      />
+                    </Field>
+                  </>
                 )}
                 <Button type="submit" disabled={restocking}>
                   {restocking ? 'Enregistrement...' : 'Ajouter au stock'}

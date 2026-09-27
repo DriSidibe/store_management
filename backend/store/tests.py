@@ -349,13 +349,27 @@ class ProductRestockTests(APITestCase):
 
             self.assertEqual((response.data['product_quantity'], response.data['product_cp']), (on_hand + 5, 1200.0))
 
+    def test_a_new_selling_price_can_be_set_with_the_restock(self):
+        response = self.restock(quantity=6, unit_cost=1500, selling_price=2000)
+
+        self.assertEqual((response.data['product_cp'], response.data['product_sp']), (1300.0, 2000))
+
+    def test_empty_selling_price_keeps_the_current_one(self):
+        response = self.restock(quantity=6, unit_cost=1500, selling_price='')
+
+        self.assertEqual(response.data['product_sp'], 1500)
+
     def test_invalid_input_changes_nothing(self):
         for bad in ({}, {'quantity': 0, 'unit_cost': 10}, {'quantity': 'abc', 'unit_cost': 10},
-                    {'quantity': 5}, {'quantity': 5, 'unit_cost': -1}):
+                    {'quantity': 5}, {'quantity': 5, 'unit_cost': -1},
+                    {'quantity': 5, 'unit_cost': 10, 'selling_price': -1},
+                    {'quantity': 5, 'unit_cost': 10, 'selling_price': 'abc'}):
             self.assertEqual(self.restock(**bad).status_code, 400)
 
         self.product.refresh_from_db()
-        self.assertEqual((self.product.product_quantity, self.product.product_cp), (4, 1000))
+        self.assertEqual(
+            (self.product.product_quantity, self.product.product_cp, self.product.product_sp), (4, 1000, 1500)
+        )
 
 
 class RecordedPriceTests(APITestCase):
@@ -440,6 +454,16 @@ class PriceHistoryTests(APITestCase):
         self.assertEqual((change['old_cost_price'], change['new_cost_price']), (1000, 1300))
         self.assertEqual(change['new_selling_price'], 1500)
         self.assertEqual(change['note'], '+6 à 1500 FCFA')
+
+    def test_selling_price_set_with_a_restock_is_in_the_same_entry(self):
+        self.client.post(
+            f'/api/products/{self.product.product_id}/restock/',
+            {'quantity': 6, 'unit_cost': 1500, 'selling_price': 2000},
+        )
+
+        [change] = self.history()
+        self.assertEqual((change['old_cost_price'], change['new_cost_price']), (1000, 1300))
+        self.assertEqual((change['old_selling_price'], change['new_selling_price']), (1500, 2000))
 
     def test_csv_import_update_is_recorded(self):
         csv_file = SimpleUploadedFile('p.csv', b'product_id,product_cp\nP1,1100\n', content_type='text/csv')
