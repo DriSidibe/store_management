@@ -2,7 +2,7 @@ from django.db import transaction
 from rest_framework import serializers
 
 from .models import (
-    ActivityLog, Bill, BillItems, Category, Customer, Product, Ravitaillement, Sell, Shelf,
+    ActivityLog, Bill, BillItems, Category, Customer, Product, ProductPriceChange, Ravitaillement, Sell, Shelf,
     SupplieEntrance, Unity,
 )
 from .stock import add_to_stock, remove_from_stock
@@ -314,3 +314,18 @@ class BillSerializer(serializers.ModelSerializer):
         model = Bill
         fields = ['id', 'customer_name', 'date_created']
         read_only_fields = ['date_created']
+
+
+class ProductPriceChangeSerializer(serializers.ModelSerializer):
+    reason_display = serializers.CharField(source='get_reason_display', read_only=True)
+    changed_by_username = serializers.SerializerMethodField(read_only=True)
+
+    class Meta:
+        model = ProductPriceChange
+        fields = [
+            'id', 'changed_at', 'changed_by_username', 'reason', 'reason_display',
+            'old_cost_price', 'new_cost_price', 'old_selling_price', 'new_selling_price', 'note',
+        ]
+
+    def get_changed_by_username(self, obj):
+        return obj.changed_by.username if obj.changed_by else None

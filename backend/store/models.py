@@ -70,6 +70,34 @@ class Product(models.Model):
 
 
 
+class ProductPriceChange(models.Model):
+    """One change of a product's cost and/or selling price, with where it
+    came from - see store.price_history.record_price_change."""
+
+    class Reason(models.TextChoices):
+        CREATED = 'created', 'Création'
+        EDITED = 'edited', 'Modification'
+        IMPORTED = 'imported', 'Import CSV'
+        RESTOCKED = 'restocked', 'Ravitaillement'
+
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='price_changes')
+    changed_at = models.DateTimeField(auto_now_add=True)
+    changed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+    reason = models.CharField(max_length=20, choices=Reason.choices)
+    # Old prices are empty for a product's creation.
+    old_cost_price = models.FloatField(null=True, blank=True)
+    new_cost_price = models.FloatField()
+    old_selling_price = models.FloatField(null=True, blank=True)
+    new_selling_price = models.FloatField()
+    note = models.CharField(max_length=255, blank=True, default="")
+
+    class Meta:
+        ordering = ['-changed_at', '-pk']
+
+    def __str__(self):
+        return f"{self.product} {self.get_reason_display()} {self.changed_at}"
+
+
 class Bill(models.Model):
     customer_name = models.CharField(max_length=255)
     date_created = models.DateTimeField(auto_now=True, blank=True)

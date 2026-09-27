@@ -22,15 +22,17 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .models import (
-    ActivityLog, Bill, BillItems, Category, Customer, Product, Ravitaillement, Sell, Shelf,
+    ActivityLog, Bill, BillItems, Category, Customer, Product, ProductPriceChange, Ravitaillement, Sell, Shelf,
     SupplieEntrance, Unity,
 )
 from .permissions import IsStaffOrReadOnly, IsSuperUser
 from .serializers import (
     ActivityLogSerializer, BillItemSerializer, BillSerializer, CategorySerializer,
-    CustomerSerializer, ProductSerializer, PublicProductSerializer, RavitaillementSerializer,
+    CustomerSerializer, ProductPriceChangeSerializer, ProductSerializer, PublicProductSerializer,
+    RavitaillementSerializer,
     SellSerializer, ShelfSerializer, SupplieEntranceSerializer, UnitySerializer,
 )
+from .price_history import record_price_change
 from .stock import add_to_stock, restock
 from .utils import generate_product_id, log_activity
 
@@ -87,10 +89,17 @@ def parse_unit_cost(data):
     return unit_cost
 
 
-def log_restock(request, model_name, product, quantity, unit_cost, old_cost, new_cost):
+def record_restock(request, model_name, product, quantity, unit_cost, old_cost, new_cost):
+    """Activity log and price history entry for a restock (selling price
+    unchanged)."""
+    note = f"+{quantity} à {unit_cost:g} FCFA"
     log_activity(
         request, 'received', model_name, product.product_name,
-        f"+{quantity} à {unit_cost:g} FCFA, prix d'achat moyen {old_cost:g} -> {new_cost:g} FCFA",
+        f"{note}, prix d'achat moyen {old_cost:g} -> {new_cost:g} FCFA",
+    )
+    record_price_change(
+        product, request.user, ProductPriceChange.Reason.RESTOCKED,
+        old_cost=old_cost, old_selling=product.product_sp, note=note,
     )
 
 
@@ -120,10 +129,16 @@ class ProductViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         product = serializer.save()
         log_activity(self.request, 'created', 'Product', f"{product.product_id} ({product.product_name})")
+        record_price_change(product, self.request.user, ProductPriceChange.Reason.CREATED)
 
     def perform_update(self, serializer):
+        old_cost, old_selling = serializer.instance.product_cp, serializer.instance.product_sp
         product = serializer.save()
         log_activity(self.request, 'updated', 'Product', f"{product.product_id} ({product.product_name})")
+        record_price_change(
+            product, self.request.user, ProductPriceChange.Reason.EDITED,
+            old_cost=old_cost, old_selling=old_selling,
+        )
 
     def perform_destroy(self, instance):
         log_activity(self.request, 'deleted', 'Product', f"{instance.product_id} ({instance.product_name})")
@@ -151,9 +166,15 @@ class ProductViewSet(viewsets.ModelViewSet):
         unit_cost = parse_unit_cost(request.data)
         with transaction.atomic():
             old_cost, new_cost = restock(product, quantity, unit_cost)
-        log_restock(request, 'Product', product, quantity, unit_cost, old_cost, new_cost)
+        record_restock(request, 'Product', product, quantity, unit_cost, old_cost, new_cost)
         product.refresh_from_db()
         return Response(ProductSerializer(product).data)
+
+    @action(detail=True, methods=['get'], url_path='price-history')
+    def price_history(self, request, product_id=None):
+        """Every change of the product's prices, newest first."""
+        changes = self.get_object().price_changes.select_related('changed_by')
+        return Response(ProductPriceChangeSerializer(changes, many=True).data)
 
     @action(detail=False, methods=['get'], url_path='low-stock')
     def low_stock(self, request):
@@ -210,9 +231,13 @@ class ProductViewSet(viewsets.ModelViewSet):
                 if row.get('low_stock_threshold'):
                     fields['low_stock_threshold'] = int(row['low_stock_threshold'])
 
-                existing = Product.objects.filter(product_id=product_id) if product_id else None
-                if existing and existing.exists():
-                    existing.update(**fields)
+                existing = Product.objects.filter(product_id=product_id).first() if product_id else None
+                if existing:
+                    Product.objects.filter(pk=existing.pk).update(**fields)
+                    record_price_change(
+                        existing, request.user, ProductPriceChange.Reason.IMPORTED,
+                        old_cost=existing.product_cp, old_selling=existing.product_sp,
+                    )
                     updated += 1
                     continue
 
@@ -227,7 +252,8 @@ class ProductViewSet(viewsets.ModelViewSet):
                 fields.setdefault('product_quantity', 0)
                 fields.setdefault('product_cp', 0)
                 fields.setdefault('product_sp', 0)
-                Product.objects.create(product_id=generate_product_id(etage, casier), **fields)
+                product = Product.objects.create(product_id=generate_product_id(etage, casier), **fields)
+                record_price_change(product, request.user, ProductPriceChange.Reason.CREATED, note="Import CSV")
                 created += 1
             except Exception as e:
                 errors.append({'row': i, 'message': str(e)})
@@ -385,6 +411,7 @@ class SellViewSet(viewsets.ModelViewSet):
         serializer = ProductSerializer(data=data)
         serializer.is_valid(raise_exception=True)
         new_product = serializer.save()
+        record_price_change(new_product, request.user, ProductPriceChange.Reason.CREATED)
         if not new_product.product_image and sale.product_image:
             new_product.product_image = sale.product_image
             new_product.save()
@@ -447,7 +474,7 @@ class RavitaillementViewSet(viewsets.ModelViewSet):
                 rav.is_deleted = True
                 rav.save(update_fields=['is_deleted'])
             if received:
-                log_restock(request, 'Ravitaillement', rav.product, received, unit_cost, old_cost, new_cost)
+                record_restock(request, 'Ravitaillement', rav.product, received, unit_cost, old_cost, new_cost)
             else:
                 log_activity(request, 'received', 'Ravitaillement', rav.product.product_name, "clôturé sans réception")
             return Response(RavitaillementSerializer(rav).data)
@@ -457,6 +484,7 @@ class RavitaillementViewSet(viewsets.ModelViewSet):
         serializer = ProductSerializer(data=data)
         serializer.is_valid(raise_exception=True)
         product = serializer.save()
+        record_price_change(product, request.user, ProductPriceChange.Reason.CREATED)
         if not product.product_image and rav.image:
             product.product_image = rav.image
             product.save(update_fields=['product_image'])

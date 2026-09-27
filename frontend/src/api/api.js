@@ -34,6 +34,8 @@ export const deleteProduct = (productId) => client.delete(`/products/${productId
 // average of the stock on hand and the new units.
 export const restockProduct = (productId, data) =>
   client.post(`/products/${productId}/restock/`, data).then((r) => r.data)
+export const getProductPriceHistory = (productId) =>
+  client.get(`/products/${productId}/price-history/`).then((r) => r.data)
 export const importProductsCsv = (file) =>
   client.post('/products/import-csv/', toFormData({ file })).then((r) => r.data)
 

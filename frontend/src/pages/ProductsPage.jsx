@@ -4,6 +4,7 @@ import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { deleteProduct, downloadReport, importProductsCsv, listProducts } from '../api/api'
 import { useAuth } from '../auth/AuthContext'
+import PriceHistory from '../components/PriceHistory'
 import SaleForm from '../components/SaleForm'
 import Badge from '../components/ui/Badge'
 import Button from '../components/ui/Button'
@@ -308,6 +309,8 @@ export default function ProductsPage() {
             <DataRow label="Seuil stock faible" value={detailProduct.low_stock_threshold} />
             <DataRow label="Prix d'achat" value={`${detailProduct.product_cp} FCFA`} />
             <DataRow label="Prix de vente" value={`${detailProduct.product_sp} FCFA`} />
+
+            <PriceHistory productId={detailProduct.product_id} />
 
             <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               {user?.is_staff && (

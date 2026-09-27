@@ -1,7 +1,9 @@
 from django.contrib.auth.models import User
 from rest_framework.test import APITestCase
 
-from .models import Bill, Category, Product, Ravitaillement, Sell, Unity
+from django.core.files.uploadedfile import SimpleUploadedFile
+
+from .models import Bill, Category, Product, ProductPriceChange, Ravitaillement, Sell, Unity
 
 
 class CategoryApiTests(APITestCase):
@@ -388,3 +390,68 @@ class RecordedPriceTests(APITestCase):
         final = self.client.get(f'/api/bills/{bill.id}/finalize/').data
         self.assertEqual(float(final['items'][0]['unit_price']), 150)
         self.assertEqual(float(final['grand_total']), 300)
+
+
+class PriceHistoryTests(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user('chef', password='x', is_staff=True)
+        self.client.force_authenticate(self.user)
+        self.unit = Unity.objects.create(name='Sac')
+        self.product = Product.objects.create(
+            product_id='P1', product_name='Ciment', product_quantity=4, product_unity=self.unit,
+            product_company='X', product_cp=1000, product_sp=1500,
+        )
+
+    def history(self):
+        return self.client.get(f'/api/products/{self.product.product_id}/price-history/').data
+
+    def test_creation_is_recorded(self):
+        Category.objects.create(name='Maçonnerie')
+        response = self.client.post('/api/products/', {
+            'product_id_etg': 'A1', 'product_id_cas': '1', 'product_name': 'fer', 'product_unity': self.unit.id,
+            'product_quantity': 3, 'product_company': 'X', 'product_cp': 400, 'product_sp': 500,
+            'category': 'Maçonnerie',
+        })
+
+        self.assertEqual(response.status_code, 201, response.data)
+        change = ProductPriceChange.objects.get(product__product_id=response.data['product_id'])
+        self.assertEqual(change.reason, 'created')
+        self.assertEqual((change.old_cost_price, change.new_cost_price), (None, 400))
+        self.assertEqual(change.changed_by, self.user)
+
+    def test_edit_records_old_and_new_prices_only_when_they_change(self):
+        url = f'/api/products/{self.product.product_id}/'
+        self.client.patch(url, {'product_description': 'sac de 50 kg'})
+        self.assertEqual(self.history(), [])
+
+        self.client.patch(url, {'product_sp': 1800})
+
+        [change] = self.history()
+        self.assertEqual(change['reason_display'], 'Modification')
+        self.assertEqual((change['old_selling_price'], change['new_selling_price']), (1500, 1800))
+        self.assertEqual((change['old_cost_price'], change['new_cost_price']), (1000, 1000))
+        self.assertEqual(change['changed_by_username'], 'chef')
+
+    def test_restock_records_the_new_average_cost_with_the_batch(self):
+        self.client.post(f'/api/products/{self.product.product_id}/restock/', {'quantity': 6, 'unit_cost': 1500})
+
+        [change] = self.history()
+        self.assertEqual(change['reason'], 'restocked')
+        self.assertEqual((change['old_cost_price'], change['new_cost_price']), (1000, 1300))
+        self.assertEqual(change['new_selling_price'], 1500)
+        self.assertEqual(change['note'], '+6 à 1500 FCFA')
+
+    def test_csv_import_update_is_recorded(self):
+        csv_file = SimpleUploadedFile('p.csv', b'product_id,product_cp\nP1,1100\n', content_type='text/csv')
+
+        self.client.post('/api/products/import-csv/', {'file': csv_file})
+
+        [change] = self.history()
+        self.assertEqual((change['reason'], change['old_cost_price'], change['new_cost_price']), ('imported', 1000, 1100))
+
+    def test_history_is_newest_first(self):
+        url = f'/api/products/{self.product.product_id}/'
+        self.client.patch(url, {'product_sp': 1600})
+        self.client.patch(url, {'product_sp': 1700})
+
+        self.assertEqual([c['new_selling_price'] for c in self.history()], [1700, 1600])
