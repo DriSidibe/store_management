@@ -4,10 +4,10 @@ import { useState } from 'react'
 import {
   createRavitaillement, createSupplierEntrance, deleteRavitaillement, downloadReport,
   listRavitaillement, listSupplierEntrances, productsLookup, promoteRavitaillementToProduct,
-  restockProduct,
 } from '../api/api'
 import CatalogProductModal from '../components/CatalogProductModal'
 import ProductAutocomplete from '../components/ProductAutocomplete'
+import RestockForm from '../components/RestockForm'
 import RestockPricing from '../components/RestockPricing'
 import Modal from '../components/ui/Modal'
 import Button from '../components/ui/Button'
@@ -50,15 +50,6 @@ export default function ApprovisionningPage() {
   const [receiving, setReceiving] = useState(false)
 
   const [restockTarget, setRestockTarget] = useState(null)
-  const [restockQuantity, setRestockQuantity] = useState('')
-  const [restockUnitCost, setRestockUnitCost] = useState('')
-  const [restockEditedPrice, setRestockEditedPrice] = useState(null)
-  const [restocking, setRestocking] = useState(false)
-
-  const selectRestockTarget = (product) => {
-    setRestockTarget(product)
-    setRestockEditedPrice(null)
-  }
 
   const [supplierName, setSupplierName] = useState('')
   const [phone, setPhone] = useState('')
@@ -133,31 +124,6 @@ export default function ApprovisionningPage() {
     }
   }
 
-  const handleRestockSubmit = async (e) => {
-    e.preventDefault()
-    setRestocking(true)
-    try {
-      const product = await restockProduct(restockTarget.product_id, {
-        quantity: restockQuantity,
-        unit_cost: restockUnitCost,
-        selling_price: restockSellingPrice(restockTarget, restockQuantity, restockUnitCost, restockEditedPrice),
-      })
-      toast.success(
-        `${product.product_name} : +${restockQuantity} en stock, prix d'achat ${product.product_cp} FCFA, ` +
-          `prix de vente ${product.product_sp} FCFA.`
-      )
-      setRestockTarget(null)
-      setRestockQuantity('')
-      setRestockUnitCost('')
-      setRestockEditedPrice(null)
-      refreshStock()
-    } catch (err) {
-      toast.error(extractErrorMessage(err))
-    } finally {
-      setRestocking(false)
-    }
-  }
-
   const handlePromoteSubmit = async (data) => {
     await promoteRavitaillementToProduct(promoteTarget.id, data)
     toast.success('Produit ajouté au catalogue.')
@@ -219,10 +185,10 @@ export default function ApprovisionningPage() {
             <h2 className="mb-3 text-sm font-semibold text-ink">Ravitailler un produit</h2>
             {!restockTarget ? (
               <Field label="Produit">
-                <ProductAutocomplete placeholder="Tape le nom ou le code du produit..." onSelect={selectRestockTarget} />
+                <ProductAutocomplete placeholder="Tape le nom ou le code du produit..." onSelect={setRestockTarget} />
               </Field>
             ) : (
-              <form className="space-y-4" onSubmit={handleRestockSubmit}>
+              <div className="space-y-4">
                 <div className="flex items-start justify-between gap-2 rounded-lg border border-border p-3">
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium text-ink">{restockTarget.product_name}</p>
@@ -232,31 +198,15 @@ export default function ApprovisionningPage() {
                   </div>
                   <button
                     type="button"
-                    onClick={() => selectRestockTarget(null)}
+                    onClick={() => setRestockTarget(null)}
                     title="Changer de produit"
                     className="rounded-lg p-1.5 text-ink-secondary hover:bg-danger/10 hover:text-danger cursor-pointer"
                   >
                     <X size={15} />
                   </button>
                 </div>
-                <RequiredLegend className="-mt-1" />
-                <Field label="Quantité reçue">
-                  <Input type="number" min="1" value={restockQuantity} onChange={(e) => setRestockQuantity(e.target.value)} autoFocus required />
-                </Field>
-                <Field label="Prix d'achat unitaire (FCFA)">
-                  <Input type="number" step="0.01" min="0" value={restockUnitCost} onChange={(e) => setRestockUnitCost(e.target.value)} required />
-                </Field>
-                <RestockPricing
-                  product={restockTarget}
-                  quantity={restockQuantity}
-                  unitCost={restockUnitCost}
-                  edited={restockEditedPrice}
-                  onEdit={setRestockEditedPrice}
-                />
-                <Button type="submit" disabled={restocking}>
-                  {restocking ? 'Enregistrement...' : 'Ajouter au stock'}
-                </Button>
-              </form>
+                <RestockForm key={restockTarget.product_id} product={restockTarget} onRestocked={() => setRestockTarget(null)} />
+              </div>
             )}
           </Card>
 

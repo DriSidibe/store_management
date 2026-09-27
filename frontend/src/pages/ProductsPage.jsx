@@ -1,10 +1,11 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, CheckCircle2, Download, Package, Pencil, Printer, Search, ShoppingCart, Trash2, Upload } from 'lucide-react'
+import { ArrowLeft, CheckCircle2, Download, Package, PackagePlus, Pencil, Printer, Search, ShoppingCart, Trash2, Upload } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { deleteProduct, downloadReport, importProductsCsv, listProducts } from '../api/api'
 import { useAuth } from '../auth/AuthContext'
 import PriceHistory from '../components/PriceHistory'
+import RestockForm from '../components/RestockForm'
 import SaleForm from '../components/SaleForm'
 import Badge from '../components/ui/Badge'
 import Button from '../components/ui/Button'
@@ -30,7 +31,8 @@ export default function ProductsPage() {
   const [importing, setImporting] = useState(false)
   const importInputRef = useRef(null)
   const [detailProduct, setDetailProduct] = useState(null)
-  // The details modal doubles as a quick sale: 'details' -> 'sell' -> 'sold'.
+  // The details modal doubles as a quick sale ('details' -> 'sell' -> 'sold')
+  // and a quick restock ('details' -> 'restock' -> back to 'details').
   const [detailMode, setDetailMode] = useState('details')
   const [lastSale, setLastSale] = useState(null)
 
@@ -45,6 +47,11 @@ export default function ProductsPage() {
     setLastSale(sale)
     setDetailMode('sold')
     setDetailProduct((p) => ({ ...p, product_quantity: p.product_quantity - (sale.quantity || 0) }))
+  }
+
+  const handleRestocked = (product) => {
+    setDetailProduct(product)
+    setDetailMode('details')
   }
 
   const { data, isLoading } = useQuery({
@@ -278,7 +285,11 @@ export default function ProductsPage() {
       <Modal
         open={!!detailProduct}
         onClose={closeDetail}
-        title={detailMode === 'details' ? detailProduct?.product_name : `Vendre « ${detailProduct?.product_name} »`}
+        title={
+          detailMode === 'details'
+            ? detailProduct?.product_name
+            : `${detailMode === 'restock' ? 'Ravitailler' : 'Vendre'} « ${detailProduct?.product_name} »`
+        }
       >
         {detailProduct && detailMode === 'details' && (
           <div>
@@ -320,6 +331,9 @@ export default function ProductsPage() {
                   </Button>
                 </Link>
               )}
+              <Button variant="outline" onClick={() => setDetailMode('restock')} className="w-full sm:w-auto">
+                <PackagePlus size={15} /> Ravitailler
+              </Button>
               <Button
                 onClick={() => setDetailMode('sell')}
                 disabled={detailProduct.product_quantity <= 0}
@@ -341,6 +355,22 @@ export default function ProductsPage() {
               <ArrowLeft size={13} /> Retour aux détails
             </button>
             <SaleForm lockedProduct={detailProduct} onSold={handleQuickSold} />
+          </div>
+        )}
+
+        {detailProduct && detailMode === 'restock' && (
+          <div>
+            <button
+              type="button"
+              onClick={() => setDetailMode('details')}
+              className="mb-3 flex items-center gap-1 text-xs font-medium text-ink-secondary hover:text-brand cursor-pointer"
+            >
+              <ArrowLeft size={13} /> Retour aux détails
+            </button>
+            <p className="mb-3 text-xs text-ink-muted">
+              Stock : {detailProduct.product_quantity} · Prix d'achat : {detailProduct.product_cp} FCFA · Prix de vente : {detailProduct.product_sp} FCFA
+            </p>
+            <RestockForm product={detailProduct} onRestocked={handleRestocked} />
           </div>
         )}
 
