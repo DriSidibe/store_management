@@ -4,8 +4,10 @@ import { useState } from 'react'
 import {
   createRavitaillement, createSupplierEntrance, deleteRavitaillement, downloadReport,
   listRavitaillement, listSupplierEntrances, productsLookup, promoteRavitaillementToProduct,
+  restockProduct,
 } from '../api/api'
 import CatalogProductModal from '../components/CatalogProductModal'
+import ProductAutocomplete from '../components/ProductAutocomplete'
 import Modal from '../components/ui/Modal'
 import Button from '../components/ui/Button'
 import Card from '../components/ui/Card'
@@ -19,6 +21,12 @@ const today = () => new Date().toISOString().slice(0, 10)
 const orderedUnits = (rav) => {
   const n = parseInt(rav?.commanded_quantity, 10)
   return Number.isNaN(n) ? undefined : n
+}
+// Same rule as the backend (stock.restock): weighted average of the stock on
+// hand and the new units; an empty or negative stock takes the new price.
+const averageCost = (product, quantity, unitCost) => {
+  const onHand = Math.max(product.product_quantity, 0)
+  return Math.round(((onHand * product.product_cp + quantity * unitCost) / (onHand + quantity)) * 100) / 100
 }
 const fileInputClass =
   'block w-full text-sm text-ink-secondary file:mr-3 file:rounded-lg file:border-0 file:bg-brand/10 file:px-3 file:py-2 file:text-sm file:font-medium file:text-brand hover:file:bg-brand/20'
@@ -39,7 +47,17 @@ export default function ApprovisionningPage() {
   const [promoteTarget, setPromoteTarget] = useState(null)
   const [receiveTarget, setReceiveTarget] = useState(null)
   const [receivedQuantity, setReceivedQuantity] = useState('')
+  const [receivedUnitCost, setReceivedUnitCost] = useState('')
   const [receiving, setReceiving] = useState(false)
+
+  const [restockTarget, setRestockTarget] = useState(null)
+  const [restockQuantity, setRestockQuantity] = useState('')
+  const [restockUnitCost, setRestockUnitCost] = useState('')
+  const [restocking, setRestocking] = useState(false)
+  const restockPreview =
+    restockTarget && Number(restockQuantity) > 0 && restockUnitCost !== ''
+      ? averageCost(restockTarget, Number(restockQuantity), Number(restockUnitCost))
+      : null
 
   const [supplierName, setSupplierName] = useState('')
   const [phone, setPhone] = useState('')
@@ -87,6 +105,7 @@ export default function ApprovisionningPage() {
       return
     }
     setReceivedQuantity(orderedUnits(rav) ?? '')
+    setReceivedUnitCost('')
     setReceiveTarget(rav)
   }
 
@@ -94,7 +113,10 @@ export default function ApprovisionningPage() {
     e.preventDefault()
     setReceiving(true)
     try {
-      await promoteRavitaillementToProduct(receiveTarget.id, { received_quantity: receivedQuantity })
+      await promoteRavitaillementToProduct(receiveTarget.id, {
+        received_quantity: receivedQuantity,
+        unit_cost: Number(receivedQuantity) > 0 ? receivedUnitCost : undefined,
+      })
       toast.success(`Approvisionnement réceptionné : +${receivedQuantity} en stock.`)
       setReceiveTarget(null)
       refreshStock()
@@ -102,6 +124,28 @@ export default function ApprovisionningPage() {
       toast.error(extractErrorMessage(err))
     } finally {
       setReceiving(false)
+    }
+  }
+
+  const handleRestockSubmit = async (e) => {
+    e.preventDefault()
+    setRestocking(true)
+    try {
+      const product = await restockProduct(restockTarget.product_id, {
+        quantity: restockQuantity,
+        unit_cost: restockUnitCost,
+      })
+      toast.success(
+        `${product.product_name} : +${restockQuantity} en stock, nouveau prix d'achat ${product.product_cp} FCFA.`
+      )
+      setRestockTarget(null)
+      setRestockQuantity('')
+      setRestockUnitCost('')
+      refreshStock()
+    } catch (err) {
+      toast.error(extractErrorMessage(err))
+    } finally {
+      setRestocking(false)
     }
   }
 
@@ -162,6 +206,49 @@ export default function ApprovisionningPage() {
 
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="min-w-0 space-y-6">
+          <Card>
+            <h2 className="mb-3 text-sm font-semibold text-ink">Ravitailler un produit</h2>
+            {!restockTarget ? (
+              <Field label="Produit">
+                <ProductAutocomplete placeholder="Tape le nom ou le code du produit..." onSelect={setRestockTarget} />
+              </Field>
+            ) : (
+              <form className="space-y-4" onSubmit={handleRestockSubmit}>
+                <div className="flex items-start justify-between gap-2 rounded-lg border border-border p-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-ink">{restockTarget.product_name}</p>
+                    <p className="text-xs text-ink-muted">
+                      Stock : {restockTarget.product_quantity} · Prix d'achat actuel : {restockTarget.product_cp} FCFA
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setRestockTarget(null)}
+                    title="Changer de produit"
+                    className="rounded-lg p-1.5 text-ink-secondary hover:bg-danger/10 hover:text-danger cursor-pointer"
+                  >
+                    <X size={15} />
+                  </button>
+                </div>
+                <RequiredLegend className="-mt-1" />
+                <Field label="Quantité reçue">
+                  <Input type="number" min="1" value={restockQuantity} onChange={(e) => setRestockQuantity(e.target.value)} autoFocus required />
+                </Field>
+                <Field label="Prix d'achat unitaire (FCFA)">
+                  <Input type="number" step="0.01" min="0" value={restockUnitCost} onChange={(e) => setRestockUnitCost(e.target.value)} required />
+                </Field>
+                {restockPreview !== null && (
+                  <p className="text-xs text-ink-muted">
+                    Nouveau prix d'achat moyen : <span className="font-semibold text-ink">{restockPreview} FCFA</span>
+                  </p>
+                )}
+                <Button type="submit" disabled={restocking}>
+                  {restocking ? 'Enregistrement...' : 'Ajouter au stock'}
+                </Button>
+              </form>
+            )}
+          </Card>
+
           <Card>
             <h2 className="mb-3 text-sm font-semibold text-ink">Demander un approvisionnement</h2>
             <RequiredLegend className="-mt-1 mb-3" />
@@ -333,7 +420,8 @@ export default function ApprovisionningPage() {
         <form className="space-y-4" onSubmit={handleReceiveSubmit}>
           <p className="text-xs text-ink-muted">
             Quantité commandée : {receiveTarget?.commanded_quantity || '-'}. Indique le nombre
-            d'unités effectivement reçues ; il sera ajouté au stock du produit.
+            d'unités effectivement reçues et leur prix d'achat : elles seront ajoutées au stock et
+            le prix d'achat du produit deviendra la moyenne pondérée avec le stock existant.
           </p>
           <Field label="Quantité reçue">
             <Input
@@ -345,6 +433,18 @@ export default function ApprovisionningPage() {
               required
             />
           </Field>
+          {Number(receivedQuantity) > 0 && (
+            <Field label="Prix d'achat unitaire (FCFA)">
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                value={receivedUnitCost}
+                onChange={(e) => setReceivedUnitCost(e.target.value)}
+                required
+              />
+            </Field>
+          )}
           <Button type="submit" disabled={receiving} className="w-full sm:w-auto">
             {receiving ? 'Enregistrement...' : 'Ajouter au stock'}
           </Button>

@@ -4,7 +4,7 @@ import io
 import os
 
 from django.db import transaction
-from django.db.models import Count, ExpressionWrapper, F, FloatField, Q, Sum
+from django.db.models import Count, DecimalField, ExpressionWrapper, F, Q, Sum
 from django.http import FileResponse, HttpResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -31,7 +31,7 @@ from .serializers import (
     CustomerSerializer, ProductSerializer, PublicProductSerializer, RavitaillementSerializer,
     SellSerializer, ShelfSerializer, SupplieEntranceSerializer, UnitySerializer,
 )
-from .stock import add_to_stock
+from .stock import add_to_stock, restock
 from .utils import generate_product_id, log_activity
 
 SEARCH_RESULT_LIMIT = 5
@@ -76,6 +76,24 @@ class CategoryViewSet(viewsets.ModelViewSet):
         instance.delete()
 
 
+def parse_unit_cost(data):
+    """Purchase price per unit of a restock, from the request body."""
+    try:
+        unit_cost = float(data.get('unit_cost'))
+    except (TypeError, ValueError):
+        unit_cost = -1
+    if unit_cost < 0:
+        raise ValidationError({'unit_cost': "Indique le prix d'achat unitaire (0 ou plus)."})
+    return unit_cost
+
+
+def log_restock(request, model_name, product, quantity, unit_cost, old_cost, new_cost):
+    log_activity(
+        request, 'received', model_name, product.product_name,
+        f"+{quantity} à {unit_cost:g} FCFA, prix d'achat moyen {old_cost:g} -> {new_cost:g} FCFA",
+    )
+
+
 class ProductViewSet(viewsets.ModelViewSet):
     serializer_class = ProductSerializer
     lookup_field = 'product_id'
@@ -117,6 +135,25 @@ class ProductViewSet(viewsets.ModelViewSet):
         """id -> name map, used to populate select dropdowns."""
         products = Product.objects.filter(is_deleted=False).order_by('product_name')
         return Response({p.pk: p.product_name for p in products})
+
+    @action(detail=True, methods=['post'])
+    def restock(self, request, product_id=None):
+        """Adds received units to the stock; the product's cost price becomes
+        the weighted average of the stock on hand and the new units (see
+        stock.restock)."""
+        product = self.get_object()
+        try:
+            quantity = int(request.data.get('quantity'))
+        except (TypeError, ValueError):
+            quantity = 0
+        if quantity <= 0:
+            raise ValidationError({'quantity': "Indique la quantité reçue (au moins 1)."})
+        unit_cost = parse_unit_cost(request.data)
+        with transaction.atomic():
+            old_cost, new_cost = restock(product, quantity, unit_cost)
+        log_restock(request, 'Product', product, quantity, unit_cost, old_cost, new_cost)
+        product.refresh_from_db()
+        return Response(ProductSerializer(product).data)
 
     @action(detail=False, methods=['get'], url_path='low-stock')
     def low_stock(self, request):
@@ -294,7 +331,9 @@ class SellViewSet(viewsets.ModelViewSet):
     def daily(self, request):
         """Sales between `start` and `end` (inclusive, YYYY-MM-DD), or on a
         single `date`; today by default. Returns the period total and, for each
-        sale linked to a product, [profit, running profit over the period]."""
+        sale linked to a product, [profit, running profit over the period] -
+        computed from the cost recorded on the sale, not the product's current
+        cost."""
         params = request.query_params
         today = timezone.now().date()
         try:
@@ -315,9 +354,9 @@ class SellViewSet(viewsets.ModelViewSet):
         benefits = {}
         running_total = 0.0
         for sale in sales:
-            if not sale.product:
+            if sale.unit_cost is None:
                 continue
-            profit = float(sale.total_price or 0) - float(sale.quantity or 0) * float(sale.product.product_cp)
+            profit = float(sale.total_price or 0) - float(sale.quantity or 0) * float(sale.unit_cost)
             running_total += profit
             benefits[sale.pk] = [profit, running_total]
 
@@ -351,11 +390,13 @@ class SellViewSet(viewsets.ModelViewSet):
             new_product.save()
 
         sale.product = new_product
+        sale.unit_cost = new_product.product_cp
         sale.save()
 
         for s in Sell.objects.exclude(pk=sale.pk).filter(is_deleted=False, product_name=sale.product_name):
             s.product_name = None
             s.product = new_product
+            s.unit_cost = new_product.product_cp
             qty = float(s.quantity or 0)
             s.unit_price = float(s.total_price or 0) / qty if qty else 0
             s.save()
@@ -397,11 +438,18 @@ class RavitaillementViewSet(viewsets.ModelViewSet):
                 received = -1
             if received < 0:
                 raise ValidationError({'received_quantity': "Indique la quantité reçue (0 ou plus)."})
+            # Nothing received just closes the request; received units are
+            # priced so the product's average cost stays right.
+            unit_cost = parse_unit_cost(request.data) if received else None
             with transaction.atomic():
-                add_to_stock(rav.product, received)
+                if received:
+                    old_cost, new_cost = restock(rav.product, received, unit_cost)
                 rav.is_deleted = True
                 rav.save(update_fields=['is_deleted'])
-            log_activity(request, 'received', 'Ravitaillement', rav.product.product_name, f"+{received} en stock")
+            if received:
+                log_restock(request, 'Ravitaillement', rav.product, received, unit_cost, old_cost, new_cost)
+            else:
+                log_activity(request, 'received', 'Ravitaillement', rav.product.product_name, "clôturé sans réception")
             return Response(RavitaillementSerializer(rav).data)
 
         data = request.data.copy()
@@ -498,7 +546,9 @@ class BillViewSet(viewsets.ModelViewSet):
                 )
             product.product_quantity -= quantity
             product.save()
-            item = BillItems.objects.create(bill=bill, product=product, quantity=quantity)
+            item = BillItems.objects.create(
+                bill=bill, product=product, quantity=quantity, unit_price=product.product_sp
+            )
             log_activity(
                 request, 'billed', 'BillItems',
                 f"{product.product_name} x{quantity} -> facture #{bill.id}",
@@ -512,9 +562,7 @@ class BillViewSet(viewsets.ModelViewSet):
     def finalize(self, request, pk=None):
         bill = self.get_object()
         items = BillItems.objects.filter(bill=bill)
-        grand_total = sum(
-            int(i.quantity) * float(i.product.product_sp) for i in items if i.product
-        )
+        grand_total = sum(i.total() for i in items)
         return Response({
             'bill': BillSerializer(bill).data,
             'items': BillItemSerializer(items, many=True).data,
@@ -534,9 +582,11 @@ class MetricsView(APIView):
 
         sales = Sell.objects.filter(is_deleted=False)
 
+        # Actual amount cashed minus the cost recorded at sale time; sales
+        # without a recorded cost (not linked to a product) count for nothing.
         benefit_expr = ExpressionWrapper(
-            (F('product__product_sp') - F('product__product_cp')) * F('quantity'),
-            output_field=FloatField()
+            F('total_price') - F('quantity') * F('unit_cost'),
+            output_field=DecimalField(max_digits=14, decimal_places=2),
         )
 
         kpis = {

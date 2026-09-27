@@ -201,6 +201,7 @@ class SellSerializer(serializers.ModelSerializer):
         product = validated_data.get('product')
         remove_from_stock(product, quantity)
         validated_data['stock_deducted'] = quantity if product else 0
+        validated_data['unit_cost'] = product.product_cp if product else None
         sell = Sell.objects.create(**validated_data)
         if image:
             sell.product_image.save(image.name, process_product_image(image), save=True)
@@ -231,6 +232,7 @@ class SellSerializer(serializers.ModelSerializer):
             add_to_stock(old_product, old_deducted)
             remove_from_stock(sale.product, quantity)
             sale.stock_deducted = quantity if sale.product else 0
+            sale.unit_cost = sale.product.product_cp if sale.product else None
         elif old_deducted and quantity != old_deducted:
             if quantity > old_deducted:
                 remove_from_stock(sale.product, quantity - old_deducted)
@@ -293,18 +295,15 @@ class SupplieEntranceSerializer(serializers.ModelSerializer):
 
 class BillItemSerializer(serializers.ModelSerializer):
     product_name = serializers.SerializerMethodField(read_only=True)
-    product_sp = serializers.SerializerMethodField(read_only=True)
     total = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = BillItems
-        fields = ['id', 'bill', 'product', 'product_name', 'product_sp', 'quantity', 'total']
+        fields = ['id', 'bill', 'product', 'product_name', 'unit_price', 'quantity', 'total']
+        read_only_fields = ['unit_price']
 
     def get_product_name(self, obj):
         return obj.product.product_name if obj.product else 'Produit supprimé'
-
-    def get_product_sp(self, obj):
-        return obj.product.product_sp if obj.product else 0
 
     def get_total(self, obj):
         return obj.total()

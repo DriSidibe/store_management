@@ -1,7 +1,7 @@
 from django.contrib.auth.models import User
 from rest_framework.test import APITestCase
 
-from .models import Category, Product, Ravitaillement, Sell, Unity
+from .models import Bill, Category, Product, Ravitaillement, Sell, Unity
 
 
 class CategoryApiTests(APITestCase):
@@ -92,17 +92,37 @@ class RavitaillementReceiveTests(APITestCase):
         )
         return product, Ravitaillement.objects.create(product=product, commanded_quantity='1 paquet')
 
-    def test_received_units_are_added_to_an_existing_product(self):
+    def test_received_units_are_added_to_an_existing_product_at_average_cost(self):
         product, rav = self.existing_product_request()
 
-        response = self.client.post(self.url(rav), {'received_quantity': 10})
+        response = self.client.post(self.url(rav), {'received_quantity': 10, 'unit_cost': 8})
 
         self.assertEqual(response.status_code, 200)
         product.refresh_from_db()
-        self.assertEqual(product.product_quantity, 14)
+        # (4 x 1 + 10 x 8) / 14
+        self.assertEqual((product.product_quantity, product.product_cp), (14, 6.0))
         rav.refresh_from_db()
         self.assertTrue(rav.is_deleted)
         self.assertEqual(Product.objects.count(), 1)
+
+    def test_receiving_units_requires_their_purchase_price(self):
+        product, rav = self.existing_product_request()
+
+        for bad in ({'received_quantity': 10}, {'received_quantity': 10, 'unit_cost': -1}):
+            self.assertEqual(self.client.post(self.url(rav), bad).status_code, 400)
+
+        product.refresh_from_db()
+        self.assertEqual(product.product_quantity, 4)
+
+    def test_receiving_nothing_just_closes_the_request(self):
+        product, rav = self.existing_product_request()
+
+        self.assertEqual(self.client.post(self.url(rav), {'received_quantity': 0}).status_code, 200)
+
+        product.refresh_from_db()
+        self.assertEqual((product.product_quantity, product.product_cp), (4, 1))
+        rav.refresh_from_db()
+        self.assertTrue(rav.is_deleted)
 
     def test_existing_product_requires_a_valid_received_quantity(self):
         product, rav = self.existing_product_request()
@@ -291,10 +311,80 @@ class SalesPeriodTests(APITestCase):
             product_id='p1', product_name='Ciment', product_quantity=10, product_unity=unit,
             product_company='X', product_cp=100, product_sp=150,
         )
-        a = Sell.objects.create(product=product, quantity=2, total_price=300, sell_date='2026-09-12T08:00Z')
-        b = Sell.objects.create(product=product, quantity=1, total_price=150, sell_date='2026-09-15T08:00Z')
+        a = Sell.objects.create(product=product, quantity=2, total_price=300, unit_cost=100, sell_date='2026-09-12T08:00Z')
+        b = Sell.objects.create(product=product, quantity=1, total_price=150, unit_cost=100, sell_date='2026-09-15T08:00Z')
 
         benefits = self.get(start='2026-09-10', end='2026-09-20').data['benefits']
 
         self.assertEqual(benefits[a.pk], [100.0, 100.0])
         self.assertEqual(benefits[b.pk], [50.0, 150.0])
+
+
+class ProductRestockTests(APITestCase):
+    def setUp(self):
+        self.client.force_authenticate(User.objects.create_user('vendeur', password='x'))
+        self.product = Product.objects.create(
+            product_id='P1', product_name='Ciment', product_quantity=4, product_unity=Unity.objects.create(name='Sac'),
+            product_company='X', product_cp=1000, product_sp=1500,
+        )
+
+    def restock(self, **data):
+        return self.client.post(f'/api/products/{self.product.product_id}/restock/', data)
+
+    def test_cost_becomes_the_weighted_average_with_the_stock_on_hand(self):
+        response = self.restock(quantity=6, unit_cost=1500)
+
+        self.assertEqual(response.status_code, 200, response.data)
+        # (4 x 1000 + 6 x 1500) / 10
+        self.assertEqual((response.data['product_quantity'], response.data['product_cp']), (10, 1300.0))
+        self.assertEqual(response.data['product_sp'], 1500)
+
+    def test_empty_or_negative_stock_takes_the_new_cost(self):
+        for on_hand in (0, -3):
+            Product.objects.filter(pk=self.product.pk).update(product_quantity=on_hand, product_cp=1000)
+
+            response = self.restock(quantity=5, unit_cost=1200)
+
+            self.assertEqual((response.data['product_quantity'], response.data['product_cp']), (on_hand + 5, 1200.0))
+
+    def test_invalid_input_changes_nothing(self):
+        for bad in ({}, {'quantity': 0, 'unit_cost': 10}, {'quantity': 'abc', 'unit_cost': 10},
+                    {'quantity': 5}, {'quantity': 5, 'unit_cost': -1}):
+            self.assertEqual(self.restock(**bad).status_code, 400)
+
+        self.product.refresh_from_db()
+        self.assertEqual((self.product.product_quantity, self.product.product_cp), (4, 1000))
+
+
+class RecordedPriceTests(APITestCase):
+    """A sale or bill keeps the prices it was made at: changing the product's
+    prices afterwards must not rewrite past amounts or profits."""
+
+    def setUp(self):
+        self.client.force_authenticate(User.objects.create_superuser('admin', password='x'))
+        self.product = Product.objects.create(
+            product_id='P1', product_name='Ciment', product_quantity=10, product_unity=Unity.objects.create(name='Sac'),
+            product_company='X', product_cp=100, product_sp=150,
+        )
+
+    def test_sale_profit_keeps_the_cost_at_sale_time(self):
+        sale_id = self.client.post('/api/sales/', {
+            'product': self.product.id, 'quantity': 2, 'total_price': 300, 'sell_date': '2026-09-20T10:00',
+        }).data['id']
+        self.assertEqual(float(Sell.objects.get(pk=sale_id).unit_cost), 100)
+
+        self.client.post(f'/api/products/{self.product.product_id}/restock/', {'quantity': 8, 'unit_cost': 400})
+
+        benefits = self.client.get('/api/sales/daily/', {'date': '2026-09-20'}).data['benefits']
+        self.assertEqual(benefits[sale_id], [100.0, 100.0])
+        self.assertEqual(float(self.client.get('/api/metrics/').data['total_profit']), 100)
+
+    def test_bill_keeps_the_selling_price_at_billing_time(self):
+        bill = Bill.objects.create(customer_name='Awa')
+        self.client.post(f'/api/bills/{bill.id}/items/', {'product_id': 'P1', 'quantity': 2})
+
+        Product.objects.filter(pk=self.product.pk).update(product_sp=999)
+
+        final = self.client.get(f'/api/bills/{bill.id}/finalize/').data
+        self.assertEqual(float(final['items'][0]['unit_price']), 150)
+        self.assertEqual(float(final['grand_total']), 300)

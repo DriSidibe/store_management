@@ -30,6 +30,10 @@ export const createProduct = (data) =>
 export const updateProduct = (productId, data) =>
   client.patch(`/products/${productId}/`, toFormData(data)).then((r) => r.data)
 export const deleteProduct = (productId) => client.delete(`/products/${productId}/`)
+// Adds received units; the product's purchase price becomes the weighted
+// average of the stock on hand and the new units.
+export const restockProduct = (productId, data) =>
+  client.post(`/products/${productId}/restock/`, data).then((r) => r.data)
 export const importProductsCsv = (file) =>
   client.post('/products/import-csv/', toFormData({ file })).then((r) => r.data)
 

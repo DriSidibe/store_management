@@ -82,19 +82,12 @@ class BillItems(models.Model):
     bill = models.ForeignKey(Bill, on_delete=models.SET_NULL, null=True)
     product = models.ForeignKey(Product, on_delete=models.SET_NULL, null=True)
     quantity = models.IntegerField(default=0, null=True, blank=True)
-
-    def productInfo(self):
-        info = {'name':self.product.product_name, 'price': self.product.product_sp}
-        return info
-
-    def billInfo(self):
-        info = {'id':self.bill.id, 'name':self.bill.customer_name, 'date':self.bill.date_created}
-        return info
+    # Selling price when the item was added to the bill: later changes to the
+    # product's price must not rewrite past bills.
+    unit_price = models.DecimalField(decimal_places=2, max_digits=10, default=0)
 
     def total(self):
-        if not self.product:
-            return 0
-        return self.quantity*self.product.product_sp
+        return (self.quantity or 0) * self.unit_price
     
 class Shelf(models.Model):
     name = models.CharField(max_length=1, unique=True)
@@ -117,10 +110,10 @@ class Sell(models.Model):
     # Units this sale has taken out of its product's stock, so edits and
     # deletions give back exactly that. 0 for sales made before stock tracking.
     stock_deducted = models.IntegerField(default=0)
-
-    def productInfo(self):
-        info = {'name':self.product.product_name, 'price': self.product.product_sp}
-        return info
+    # Product cost price at the time of the sale, so the sale's profit stays
+    # what it was when restocks later move the product's (average) cost.
+    # Null for sales not linked to a catalog product.
+    unit_cost = models.DecimalField(decimal_places=2, max_digits=10, null=True, blank=True)
 
 class Ravitaillement(models.Model):
     product = models.ForeignKey(Product, on_delete=models.SET_NULL, null=True)
@@ -129,10 +122,7 @@ class Ravitaillement(models.Model):
     image = models.ImageField(upload_to ='products_images/', blank=True, null=True, default=None)
     is_deleted = models.BooleanField(default=False)
 
-    def productInfo(self):
-        info = {'name':self.product.product_name, 'price': self.product.product_sp}
-        return info
-    
+
 class SupplieEntrance(models.Model):
     supplier_name = models.CharField(max_length=255, null=True)
     Suppler_tel = models.CharField(max_length=255, null=True)

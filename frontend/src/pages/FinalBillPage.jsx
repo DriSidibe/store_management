@@ -34,7 +34,7 @@ export default function FinalBillPage() {
               <Tr key={i.id}>
                 <Td>{i.product_name}</Td>
                 <Td>{i.quantity}</Td>
-                <Td>{i.product_sp}</Td>
+                <Td>{i.unit_price}</Td>
                 <Td>{i.total}</Td>
               </Tr>
             ))}

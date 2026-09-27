@@ -91,7 +91,7 @@ export default function AddProductToBillPage() {
           <Card key={i.id} className="flex items-center justify-between p-3">
             <div>
               <p className="text-sm font-medium text-ink">{i.product_name}</p>
-              <p className="text-xs text-ink-muted">{i.quantity} × {i.product_sp} FCFA</p>
+              <p className="text-xs text-ink-muted">{i.quantity} × {i.unit_price} FCFA</p>
             </div>
             <p className="font-semibold text-ink">{i.total} FCFA</p>
           </Card>
@@ -106,7 +106,7 @@ export default function AddProductToBillPage() {
               <Tr key={i.id}>
                 <Td>{i.product_name}</Td>
                 <Td>{i.quantity}</Td>
-                <Td>{i.product_sp}</Td>
+                <Td>{i.unit_price}</Td>
                 <Td>{i.total}</Td>
               </Tr>
             ))}
