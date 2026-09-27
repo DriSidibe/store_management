@@ -8,6 +8,7 @@ import {
 } from '../api/api'
 import CatalogProductModal from '../components/CatalogProductModal'
 import ProductAutocomplete from '../components/ProductAutocomplete'
+import RestockPricing from '../components/RestockPricing'
 import Modal from '../components/ui/Modal'
 import Button from '../components/ui/Button'
 import Card from '../components/ui/Card'
@@ -15,6 +16,7 @@ import { CardStack } from '../components/ui/CardList'
 import { Field, Input, RequiredLegend, Select } from '../components/ui/Form'
 import { Table, Tbody, Td, Th, Thead, Tr } from '../components/ui/Table'
 import { extractErrorMessage, useToast } from '../toast/ToastContext'
+import { restockSellingPrice } from '../utils/restockPricing'
 
 const today = () => new Date().toISOString().slice(0, 10)
 // The ordered quantity is free text ("5", "1 paquet"...): use its leading number, if any.
@@ -22,17 +24,6 @@ const orderedUnits = (rav) => {
   const n = parseInt(rav?.commanded_quantity, 10)
   return Number.isNaN(n) ? undefined : n
 }
-// Same rule as the backend (stock.restock): weighted average of the stock on
-// hand and the new units; an empty or negative stock takes the new price.
-const averageCost = (product, quantity, unitCost) => {
-  const onHand = Math.max(product.product_quantity, 0)
-  return Math.round(((onHand * product.product_cp + quantity * unitCost) / (onHand + quantity)) * 100) / 100
-}
-// Selling price that keeps the product's current margin rate on its new
-// average cost (e.g. bought 1000 / sold 1500 -> sold 1.5 x the new cost),
-// rounded to the franc. Without a cost to compare to, the current price.
-const suggestedSellingPrice = (product, newCost) =>
-  product.product_cp > 0 ? Math.round((newCost * product.product_sp) / product.product_cp) : product.product_sp
 const fileInputClass =
   'block w-full text-sm text-ink-secondary file:mr-3 file:rounded-lg file:border-0 file:bg-brand/10 file:px-3 file:py-2 file:text-sm file:font-medium file:text-brand hover:file:bg-brand/20'
 
@@ -53,30 +44,20 @@ export default function ApprovisionningPage() {
   const [receiveTarget, setReceiveTarget] = useState(null)
   const [receivedQuantity, setReceivedQuantity] = useState('')
   const [receivedUnitCost, setReceivedUnitCost] = useState('')
+  // Selling price typed in a restock form - null while untouched, so the
+  // field shows the suggestion (see RestockPricing).
+  const [receivedEditedPrice, setReceivedEditedPrice] = useState(null)
   const [receiving, setReceiving] = useState(false)
 
   const [restockTarget, setRestockTarget] = useState(null)
   const [restockQuantity, setRestockQuantity] = useState('')
   const [restockUnitCost, setRestockUnitCost] = useState('')
-  // null until the user types in the field: it then shows the suggestion.
-  const [restockSellingPrice, setRestockSellingPrice] = useState(null)
+  const [restockEditedPrice, setRestockEditedPrice] = useState(null)
   const [restocking, setRestocking] = useState(false)
-  const restockPreview =
-    restockTarget && Number(restockQuantity) > 0 && restockUnitCost !== ''
-      ? averageCost(restockTarget, Number(restockQuantity), Number(restockUnitCost))
-      : null
-  const sellingPriceField =
-    restockSellingPrice ?? (restockPreview !== null ? String(suggestedSellingPrice(restockTarget, restockPreview)) : '')
-  // Profit per unit with the selling price that will apply: the one in the
-  // field, or the current one if the field is emptied.
-  const newUnitProfit =
-    restockPreview !== null
-      ? Math.round(((sellingPriceField === '' ? restockTarget.product_sp : Number(sellingPriceField)) - restockPreview) * 100) / 100
-      : null
 
   const selectRestockTarget = (product) => {
     setRestockTarget(product)
-    setRestockSellingPrice(null)
+    setRestockEditedPrice(null)
   }
 
   const [supplierName, setSupplierName] = useState('')
@@ -126,6 +107,7 @@ export default function ApprovisionningPage() {
     }
     setReceivedQuantity(orderedUnits(rav) ?? '')
     setReceivedUnitCost('')
+    setReceivedEditedPrice(null)
     setReceiveTarget(rav)
   }
 
@@ -136,6 +118,10 @@ export default function ApprovisionningPage() {
       await promoteRavitaillementToProduct(receiveTarget.id, {
         received_quantity: receivedQuantity,
         unit_cost: Number(receivedQuantity) > 0 ? receivedUnitCost : undefined,
+        selling_price:
+          Number(receivedQuantity) > 0
+            ? restockSellingPrice(receiveTarget.product_stock, receivedQuantity, receivedUnitCost, receivedEditedPrice)
+            : undefined,
       })
       toast.success(`Approvisionnement réceptionné : +${receivedQuantity} en stock.`)
       setReceiveTarget(null)
@@ -154,7 +140,7 @@ export default function ApprovisionningPage() {
       const product = await restockProduct(restockTarget.product_id, {
         quantity: restockQuantity,
         unit_cost: restockUnitCost,
-        selling_price: sellingPriceField,
+        selling_price: restockSellingPrice(restockTarget, restockQuantity, restockUnitCost, restockEditedPrice),
       })
       toast.success(
         `${product.product_name} : +${restockQuantity} en stock, prix d'achat ${product.product_cp} FCFA, ` +
@@ -163,7 +149,7 @@ export default function ApprovisionningPage() {
       setRestockTarget(null)
       setRestockQuantity('')
       setRestockUnitCost('')
-      setRestockSellingPrice(null)
+      setRestockEditedPrice(null)
       refreshStock()
     } catch (err) {
       toast.error(extractErrorMessage(err))
@@ -260,31 +246,13 @@ export default function ApprovisionningPage() {
                 <Field label="Prix d'achat unitaire (FCFA)">
                   <Input type="number" step="0.01" min="0" value={restockUnitCost} onChange={(e) => setRestockUnitCost(e.target.value)} required />
                 </Field>
-                {restockPreview !== null && (
-                  <>
-                    <div className="space-y-1 rounded-lg bg-ink/5 p-3 text-xs text-ink-muted">
-                      <p>
-                        Nouveau prix d'achat moyen : <span className="font-semibold text-ink">{restockPreview} FCFA</span>
-                      </p>
-                      <p>
-                        Bénéfice par unité : {Math.round((restockTarget.product_sp - restockTarget.product_cp) * 100) / 100} →{' '}
-                        <span className={`font-semibold ${newUnitProfit < 0 ? 'text-danger' : 'text-ink'}`}>{newUnitProfit} FCFA</span>
-                      </p>
-                    </div>
-                    <Field
-                      label="Nouveau prix de vente (FCFA)"
-                      hint={`Proposé pour garder la même marge en pourcentage. Vide ce champ pour garder le prix actuel (${restockTarget.product_sp} FCFA).`}
-                    >
-                      <Input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={sellingPriceField}
-                        onChange={(e) => setRestockSellingPrice(e.target.value)}
-                      />
-                    </Field>
-                  </>
-                )}
+                <RestockPricing
+                  product={restockTarget}
+                  quantity={restockQuantity}
+                  unitCost={restockUnitCost}
+                  edited={restockEditedPrice}
+                  onEdit={setRestockEditedPrice}
+                />
                 <Button type="submit" disabled={restocking}>
                   {restocking ? 'Enregistrement...' : 'Ajouter au stock'}
                 </Button>
@@ -487,6 +455,15 @@ export default function ApprovisionningPage() {
                 required
               />
             </Field>
+          )}
+          {receiveTarget?.product_stock && (
+            <RestockPricing
+              product={receiveTarget.product_stock}
+              quantity={receivedQuantity}
+              unitCost={receivedUnitCost}
+              edited={receivedEditedPrice}
+              onEdit={setReceivedEditedPrice}
+            />
           )}
           <Button type="submit" disabled={receiving} className="w-full sm:w-auto">
             {receiving ? 'Enregistrement...' : 'Ajouter au stock'}

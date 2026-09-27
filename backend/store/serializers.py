@@ -243,16 +243,28 @@ class SellSerializer(serializers.ModelSerializer):
 
 class RavitaillementSerializer(serializers.ModelSerializer):
     product_name_display = serializers.SerializerMethodField(read_only=True)
+    product_stock = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Ravitaillement
         fields = [
-            'id', 'product', 'product_name', 'product_name_display',
+            'id', 'product', 'product_name', 'product_name_display', 'product_stock',
             'commanded_quantity', 'image',
         ]
 
     def get_product_name_display(self, obj):
         return obj.product.product_name if obj.product else obj.product_name
+
+    def get_product_stock(self, obj):
+        """Stock and prices of the catalog product, for the receipt form's
+        average cost and selling price suggestion (None for a new product)."""
+        if not obj.product:
+            return None
+        return {
+            'product_quantity': obj.product.product_quantity,
+            'product_cp': obj.product.product_cp,
+            'product_sp': obj.product.product_sp,
+        }
 
     def validate(self, attrs):
         product = attrs.get('product')

@@ -455,7 +455,7 @@ class RavitaillementViewSet(viewsets.ModelViewSet):
     serializer_class = RavitaillementSerializer
 
     def get_queryset(self):
-        return Ravitaillement.objects.filter(is_deleted=False)
+        return Ravitaillement.objects.filter(is_deleted=False).select_related('product')
 
     def perform_create(self, serializer):
         rav = serializer.save()
@@ -487,9 +487,10 @@ class RavitaillementViewSet(viewsets.ModelViewSet):
             # Nothing received just closes the request; received units are
             # priced so the product's average cost stays right.
             unit_cost = parse_unit_cost(request.data) if received else None
+            selling_price = parse_selling_price(request.data) if received else None
             with transaction.atomic():
                 if received:
-                    old_cost, new_cost = restock(rav.product, received, unit_cost)
+                    old_cost, new_cost = restock(rav.product, received, unit_cost, selling_price)
                 rav.is_deleted = True
                 rav.save(update_fields=['is_deleted'])
             if received:

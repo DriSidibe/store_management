@@ -107,6 +107,24 @@ class RavitaillementReceiveTests(APITestCase):
         self.assertTrue(rav.is_deleted)
         self.assertEqual(Product.objects.count(), 1)
 
+    def test_a_new_selling_price_can_be_set_on_receipt(self):
+        product, rav = self.existing_product_request()
+
+        self.client.post(self.url(rav), {'received_quantity': 10, 'unit_cost': 8, 'selling_price': 9})
+
+        product.refresh_from_db()
+        self.assertEqual((product.product_cp, product.product_sp), (6.0, 9))
+
+    def test_pending_requests_show_the_product_stock_and_prices(self):
+        self.existing_product_request()
+        Ravitaillement.objects.create(product_name='Fer de 8', commanded_quantity='50')
+
+        results = self.client.get('/api/ravitaillement/').data['results']
+
+        stocks = {r['product_name_display']: r['product_stock'] for r in results}
+        self.assertEqual(stocks['Ciment'], {'product_quantity': 4, 'product_cp': 1, 'product_sp': 1})
+        self.assertIsNone(stocks['Fer de 8'])
+
     def test_receiving_units_requires_their_purchase_price(self):
         product, rav = self.existing_product_request()
 
